@@ -3,3 +3,6 @@
 *.prefs
 *.txt
 *.layout
+*.o
+*.mod
+*.depend

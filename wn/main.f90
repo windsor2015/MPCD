@@ -12,15 +12,15 @@ module parameters
     real(8), parameter :: kB = 1.38064852d-23
     real(8), parameter :: pi = 3.141592653589793238462643383279
 
-    real(8), parameter :: time_step_p=0.0001, time_step_s=0.0001, mass_p=1, mass_s=0.1, T_set=1
+    real(8), parameter :: time_step_p=0.0001, time_step_s=0.0001, mass_p=1, mass_s=0.1, T_set=1, v_probability=0.2
 
 
     ! polymer 位置 速度 力 上一次力
-    real(8) x_p(3, n_p), v_p(3, n_p), f_p(3, n_p), f0_p(3, n_p)
+    real(8), dimension(3,n_p) :: x_p, v_p, f_p, f0_p
     ! solution
-    real(8) x_s(3, n_s), v_s(3, n_s), f_s(3, n_s)
+    real(8), dimension(3,n_s) :: x_s, v_s, f_s, x0_s
     ! boundaaries, 1~nb-up, nb+1~2nb-down
-    real(8) x_b(3, 2*n_b), v_b(3, 2*n_b), f_b(3, 2*n_b)
+    real(8), dimension(3,2*n_b) :: x_b, v_b, f_b
 
     real(8) box_size_unit, half_box_size_unit, box_size(3), half_box_size(3)
 
@@ -30,28 +30,28 @@ module parameters
     real(8) aver_v(3)
 
 
-    real(8) x_bu(n_wall),y_bu(n_wall),z_bu(n_wall),x_bd(n_wall),y_bd(n_wall),z_bd(n_wall)  ! 上下边界坐标, b-boundary, u-up, d-down
-    real(8) y_p(n_p),z_p(n_p),vr_p(n_p),vy_p(n_p),vz_p(n_p),r0_s(n_s),y11(n_s),z11(n_s)
-    real(8) dx1(n_s),dy1(n_s),dz1(n_s),x12(n_s),y12(n_s),z12(n_s),y13(n_s)
-    real(8) dx2(n_s),dy2(n_s),dz2(n_s),x0(n_s),y0(n_s),z0(n_s),x10(n_s),y10(n_s),z10(n_s)
-    real(8) y_s(n_s),z_s(n_s),vr_s(n_s),vy_s(n_s),vz_s(n_s)
-    real(8) vxx(4500),vyy(4500),vzz(4500),d1(n_p),dd0,dd1,dd
-    real(8) vx10(n_s),vy10(n_s),vz10(n_s),g(n_s),gee,vu(n_s),vvu(n_s),Ek,U,ppx,ppy,ppz,x30(n_p),y30(n_p)
-    real(8) forcex1_p(n_p),forcey1_p(n_p),forcez1_p(n_p),forcex2_p(n_p),forcey2_p(n_p),forcez2_p(n_p),kx3(n_p),ky3(n_p),kz3(n_p),f
-    real(8) rannx(n_p),ranny(n_p),rannz(n_p),ran1,ran2,rco,lx,ly,lz
-    real(8) vp,scalx,scaly,scalar_T,scalz,vp2,ranx,rany,ranz,rx,ry,rz,rr,rr1,rl
-    real(8) sum_x,sum_y,sum_z,mx1,my1,mz1,Ek_real,Ek_scaled,kin11,kin22,Ek0,Ek1,Ek2
-    real(8) rx1,ry1,rz1,rx2,ry2,rz2,rx3,ry3,rz3,r1,r2,r3,alpha,cos_alpha,sin_alpha
-    real(8) v_probability,dlty,R22,xcm,ycm,zcm,S2mm(n_p),gg(n_p),ge
-    real(8) x_up1(n_wall),y_up1(n_wall),z_up1(n_wall),x_down1(n_wall),y_down1(n_wall),z_down1(n_wall)
-    real(8) rx00,ry00,rz00,rxyz,ddx1,ddy1,ddz1,ddx2,ddy2,ddz2,ddx3,ddy3,ddz3
-    real(8) dt,sf,Ek_fac,dx0(n_s),dy0(n_s),dz0(n_s),theta,fai
-    real(8) rrx1,rry1,rrx2,rry2,rrz2,rr2,rrx3,rry3,rrz3,rr3,rr4
-    real(8) t0,t1,t2,cc,ss,sss,c1,c2,c3,c12,c22,c32,pc,pcc,pyx,yta
-    real(8) s(3,3),d(3),vv(n_p),vvv(n_p),temp1,T_Ek,r,ll
-    real(8) LJ_rb,FENE_max_distance,ld1,LJ_rc    !,   small
-    integer count_s,count_p,j,sub,jj,p,n0,l,t,q1,cur_step_pri,cur_step,qq,total_step_pri,total_step,st01
-    integer st0,st00,st1,st11,step_per_run,st22,a,n2,rand1_num,gama,num(n_cell_y)
+!    real(8) x_bu(n_wall),y_bu(n_wall),z_bu(n_wall),x_bd(n_wall),y_bd(n_wall),z_bd(n_wall)  ! 上下边界坐标, b-boundary, u-up, d-down
+!    real(8) y_p(n_p),z_p(n_p),vr_p(n_p),vy_p(n_p),vz_p(n_p),r0_s(n_s),y11(n_s),z11(n_s)
+!    real(8) dx1(n_s),dy1(n_s),dz1(n_s),x12(n_s),y12(n_s),z12(n_s),y13(n_s)
+!    real(8) dx2(n_s),dy2(n_s),dz2(n_s),x0(n_s),y0(n_s),z0(n_s),x10(n_s),y10(n_s),z10(n_s)
+!    real(8) y_s(n_s),z_s(n_s),vr_s(n_s),vy_s(n_s),vz_s(n_s)
+!    real(8) vxx(4500),vyy(4500),vzz(4500),d1(n_p),dd0,dd1,dd
+!    real(8) vx10(n_s),vy10(n_s),vz10(n_s),g(n_s),gee,vu(n_s),vvu(n_s),Ek,U,ppx,ppy,ppz,x30(n_p),y30(n_p)
+!    real(8) forcex1_p(n_p),forcey1_p(n_p),forcez1_p(n_p),forcex2_p(n_p),forcey2_p(n_p),forcez2_p(n_p),kx3(n_p),ky3(n_p),kz3(n_p),f
+!    real(8) rannx(n_p),ranny(n_p),rannz(n_p),ran1,ran2,rco,lx,ly,lz
+!    real(8) vp,scalx,scaly,scalar_T,scalz,vp2,ranx,rany,ranz,rx,ry,rz,rr,rr1,rl
+!    real(8) sum_x,sum_y,sum_z,mx1,my1,mz1,Ek_real,Ek_scaled,kin11,kin22,Ek0,Ek1,Ek2
+!    real(8) rx1,ry1,rz1,rx2,ry2,rz2,rx3,ry3,rz3,r1,r2,r3,alpha,cos_alpha,sin_alpha
+!    real(8) v_probability,dlty,R22,xcm,ycm,zcm,S2mm(n_p),gg(n_p),ge
+!    real(8) x_up1(n_wall),y_up1(n_wall),z_up1(n_wall),x_down1(n_wall),y_down1(n_wall),z_down1(n_wall)
+!    real(8) rx00,ry00,rz00,rxyz,ddx1,ddy1,ddz1,ddx2,ddy2,ddz2,ddx3,ddy3,ddz3
+!    real(8) dt,sf,Ek_fac,dx0(n_s),dy0(n_s),dz0(n_s),theta,fai
+!    real(8) rrx1,rry1,rrx2,rry2,rrz2,rr2,rrx3,rry3,rrz3,rr3,rr4
+!    real(8) t0,t1,t2,cc,ss,sss,c1,c2,c3,c12,c22,c32,pc,pcc,pyx,yta
+!    real(8) s(3,3),d(3),vv(n_p),vvv(n_p),temp1,T_Ek,r,ll
+!    real(8) LJ_rb,FENE_max_distance,ld1,LJ_rc    !,   small
+!    integer count_s,count_p,j,sub,jj,p,n0,l,t,q1,cur_step_pri,cur_step,qq,total_step_pri,total_step,st01
+!    integer st0,st00,st1,st11,step_per_run,st22,a,n2,rand1_num,gama,num(n_cell_y)
 end module
 
 
@@ -59,46 +59,47 @@ end module
 program translocation
     use parameters
     implicit none
-    real(8) :: Ek
-    integer :: cur_step_per_rot, total_step_per_rot
-    integer i, ix, iy, iz, k
+    real(8) :: Ek, EK_scaled, T_Ek
+    integer :: cur_step_per_rot, total_step_per_rot, cur_step_pri, total_step_pri, cur_step, total_step
+
+    integer i, ix, iy, iz, k, j
+    real(8) randx, randz, ppx, ppz
 
     character(len=20) filename
 
     call random_seed()
     total_step_pri=3800000
-    st1=3800000
-    st11=10000
+!    st1=3800000
+!    st11=10000
     total_step=500000
-    st0=199000
-    st01=1000
-    st00=200000
-    step_per_run=1000
-    st22=10000
+!    st0=199000
+!    st01=1000
+!    st00=200000
+!    step_per_run=1000
+!    st22=10000
     total_step_per_rot=200
-    alpha=130*pi/180
-
-    rand1_num=-4500
-
-
-    temp1=1
+!    alpha=130*pi/180
+!
+!    rand1_num=-4500
+!
+!
+!    temp1=1
 
     box_size = [n_cell_x, n_cell_y, n_cell_z]
     half_box_size = box_size/2
 
-    box_size_unit=box_size_x/n_cell_x
+    box_size_unit=box_size(1)/n_cell_x
     half_box_size_unit=box_size_unit/2.0
 
-    v_probability=0.2
 
-    cos_alpha=cos(alpha)
-    sin_alpha=sin(alpha)
+    !cos_alpha=cos(alpha)
+    !sin_alpha=sin(alpha)
     !small=dble(0.001)
     !!!d读链的大小 改成1个文件
 
     open(11,file='1.txt')
     do i=1,n_p
-        read(11,*) x_p(i)
+        read(11,*) x_p(:,i)
     end do
     close(11)
 
@@ -217,9 +218,7 @@ program translocation
 !        z_down1(i)=z_bd(i)
 !    enddo
 
-    r0_s=x_s
-
-    q1=1
+    x0_s=x_s
 
     do cur_step=1,total_step
 
@@ -241,14 +240,15 @@ program translocation
         randx=rand(0)
         randz=rand(0)
         x_p(1,:)=x_p(1,:)+(randx-0.5)*box_size_unit
-        x_p(3,:)=x_p(3,:)+(randy-0.5)*box_size_unit
+        x_p(3,:)=x_p(3,:)+(randz-0.5)*box_size_unit
 
         ppx=0.05
         ppz=0.05
 
-        do p=1,n_p
+        do j=1,n_p
 
-            if(box_size_x*nint((x_p(p)-half_box_size_x)/box_size_x)/=ppx.or.box_size_z*nint((z_p(p)-half_box_size_y)/box_size_z)/=ppz)then
+            if(box_size(1)*nint((x_p(1,j)-half_box_size(1))/box_size(1))/=ppx &
+            .or.box_size(3)*nint((x_p(3,j)-half_box_size(3))/box_size(3))/=ppz)then
 !                do i=1,256
 !                    x_bu(i)=x_up1(i)
 !                    z_bu(i)=z_up1(i)
@@ -256,10 +256,10 @@ program translocation
 !                    z_bd(i)=z_down1(i)
 !                enddo
 
-                x_s=r0_s
+                x_s=x0_s
 
-                ppx=box_size_x*nint((x_p(:,p)-half_box_size_x)/box_size_x)
-                ppz=box_size_z*nint((x_p(:,p)-half_box_size_y)/box_size_z)
+                ppx=box_size(1)*nint((x_p(1,j)-half_box_size(1))/box_size(1))
+                ppz=box_size(3)*nint((x_p(3,j)-half_box_size(3))/box_size(3))
 
 !                do i=1,256
 !                    x_bu(i)=x_bu(i)+ppx
@@ -275,21 +275,21 @@ program translocation
                 x_s(1,:) = x_s(1,:) -0.1*(x_s(2,:)**2-15.0*x_s(2,:))*v_probability*time_step_s
                 ! 弹回, 看起来不对
                 do i=1,n_s
-                    y12(i)=y_s(i)
-                    if(y_s(i)>=box_size_y.or.y_s(i)<=0)then
-                        y_s(i)=y12(i)
-                    endif
+                    !y12(i)=y_s(i)
+                    !if(y_s(i)>=box_size_y.or.y_s(i)<=0)then
+                        !y_s(i)=y12(i)
+                    !endif
                 enddo
 
                 x_s(1,:)=x_s(1,:)+(randx-0.5)*box_size_unit
                 x_s(3,:)=x_s(3,:)+(randz-0.5)*box_size_unit
 
-                x_s(1,:)=x_s(1,i)-box_size_x*nint((x_s(1,:)-(ppx+half_box_size_x))/box_size_x)
-                x_s(3,:)=x_s(3,:)-box_size_z*nint((x_s(3,:)-(ppz+half_box_size_y))/box_size_z)
+                x_s(1,:)=x_s(1,i)-box_size(1)*nint((x_s(1,:)-(ppx+half_box_size(1)))/box_size(1))
+                x_s(3,:)=x_s(3,:)-box_size(3)*nint((x_s(3,:)-(ppz+half_box_size(3)))/box_size(3))
 
-                if(cur_step>=st0.and.cur_step<st00.and.MOD(cur_step,st22)==0)then
-                    write(100,*)cur_step,p
-                endif
+                !if(cur_step>=st0.and.cur_step<st00.and.MOD(cur_step,st22)==0)then
+                !    write(100,*)cur_step,j
+                !endif
 
                 call cal_average_momentum()
 
@@ -372,7 +372,7 @@ contains
         if(r/=0 .and. r<=LJ_rc)then
             temp=48.0*LJ_epsilon*((LJ_sigma/r)**6**2)/(r**2)
             f=f+rx*temp
-            U=U+4*s0*(LJ_sigma/r)**12
+            U=U+4*LJ_epsilon*(LJ_sigma/r)**12
         endif
     end subroutine
 
@@ -381,7 +381,7 @@ contains
         real(8) f(3), U, rx1(3), rx2(3)
         real(8), parameter :: BEND_b = 0
 
-        f=f(+BEND_b*(rx1-rx2)
+        f=f+BEND_b*(rx1-rx2)
         U=U-BEND_b*dot_product(rx1,rx2)
     end subroutine
 
@@ -389,7 +389,7 @@ contains
         use parameters, only : x_p, f_p, n_p,f0_p
         implicit none
         integer mode, i, j
-        real(8) U, rx(3),r
+        real(8) U, temp(3)
 
         f_p=0
 
@@ -418,14 +418,17 @@ contains
 
         !!!!!!!bend energy!!!!!!!!!
         do i=2,n_p-1
-            call BEND(f_p(:,i),U,x_p(i+1)-x_p(:,i),x_p(:,i)-x_p(:,i-1))
+            call BEND(f_p(:,i),U,x_p(:,i+1)-x_p(:,i),x_p(:,i)-x_p(:,i-1))
         enddo
         !!!!!!!!!!!!!!!!!!!end bend energy
 
         ! force on boundaries
+        temp=0
         do i=1,n_p
-            call LJ(f_p(:,i),U,[0,x_p(2,i),0])
-            call LJ(f_p(:,i),U,[0,n_cell_y-x_p(2,i),0])
+            temp(2)=x_p(2,i)
+            call LJ(f_p(:,i),U,temp)
+            temp(2)=n_cell_y-x_p(2,i)
+            call LJ(f_p(:,i),U,temp)
         enddo
 
         if (mode==2) then
@@ -436,14 +439,17 @@ contains
 
     logical function inbox(x,ix,iy,iz)
         implicit none
-
+real(8) x(3)
+integer ix,iy,iz
+inbox=.true.
     end function
 
     subroutine cal_average_momentum()
         use parameters
         implicit none
         integer ix,iy,iz,k,count_p,count_s,i,j
-        real(8) momentum(3), matrix(3,3), aver_momentum(3),l(3),c,s,suml
+        real(8) momentum(3), matrix(3,3), aver_momentum(3),l(3),suml,fai,theta
+        real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
         ! calculate average momentum of each cell
         k=0
         do ix=0,n_cell_x-1
@@ -454,8 +460,8 @@ contains
 
                     fai=2.0*pi*rand(0)
                     theta=2.0*rand(0)-1
-                    c=cos(alpha)
-                    s=sin(alpha)
+                    !c=cos(alpha)
+                    !s=sin(alpha)
                     l(1)=cos(fai)*SQRT(1-theta**2)
                     l(2)=sin(fai)*SQRT(1-theta**2)
                     l(3)=theta
@@ -481,7 +487,7 @@ contains
                     momentum=0
                     count_p=0
                     do i=1,n_p
-                        if(inbox(x_p(:,i)))then
+                        if(inbox(x_p(:,i),ix,iy,iz))then
                             momentum = momentum + v_p(:,i)*mass_p
                             count_p=count_p+1
                             v_p(:,i)=matmul(matrix,v_p(:,i))
@@ -489,7 +495,7 @@ contains
                     enddo
                     count_s=0
                     do i=1,n_s
-                        if(inbox(x_s(:,i)))then
+                        if(inbox(x_s(:,i),ix,iy,iz))then
                             momentum = momentum + v_s(:,i)*mass_s
                             count_s=count_s+1
                             v_s(:,i)=matmul(matrix,v_s(:,i))
@@ -515,16 +521,17 @@ contains
         do i=1,3
             v(i,:) = v(i,:)-sum(v(i,:))/n
         enddo
-        Ek1=0.5*mass*sum(v()**2)
+        Ek1=0.5*mass*sum(v**2)
         T1=Ek1/(Ek_fac*n)
         scalar=sqrt(T/T1)
         v=v*scalar
-        Ek=0.5*mass*sum(v()**2)
+        Ek=0.5*mass*sum(v**2)
 
     end subroutine
 
-    subroutine output()
+    subroutine output(step)
         implicit none
+        integer step
 !        if(MOD(cur_step_pri,st1)==0)then
 !
 !            call tran(cur_step_pri+5,filename)
