@@ -49,7 +49,7 @@ module parameters
     real(8) rrx1,rry1,rrx2,rry2,rrz2,rr2,rrx3,rry3,rrz3,rr3,rr4
     real(8) t0,t1,t2,cc,ss,sss,c1,c2,c3,c12,c22,c32,pc,pcc,pyx,yta
     real(8) s(3,3),d(3),vv(n_p),vvv(n_p),temp1,T_Ek,r,ll
-    real(8) LJ_rb,FENE_max_distance,ld1,LJ_rc,small
+    real(8) LJ_rb,FENE_max_distance,ld1,LJ_rc    !,   small
     integer count_s,count_p,j,sub,jj,p,n0,l,t,q1,cur_step_pri,cur_step,qq,total_step_pri,total_step,st01
     integer st0,st00,st1,st11,step_per_run,st22,a,n2,rand1_num,gama,num(n_cell_y)
 end module
