@@ -59,7 +59,7 @@ end module
 program translocation
     use parameters
     implicit none
-    real(8) :: Ek, EK_scaled, T_Ek
+    real(8) :: Ek, EK_scaled, T_Ek, T_scaled
     integer :: cur_step_per_rot, total_step_per_rot, cur_step_pri, total_step_pri, cur_step, total_step
 
     integer i, ix, iy, iz, k, j
@@ -177,19 +177,19 @@ program translocation
     call random_number(v_p)
     v_p=v_p-0.5
 
-    call scale_v(v_p, n_p, mass_p, Ek_scaled, T_set)
+    call scale_v(v_p, n_p, mass_p, Ek_scaled, T_set, T_scaled)
 
     write(*,*) '初始标度后动能kin2=',Ek_scaled
-    write(*,*) '初始标度后温度tmp=',T_Ek
+    write(*,*) '初始标度后温度tmp=',T_set
 
     !!!溶剂的初速度
     call random_number(v_s)
     v_s=v_s-0.5
 
-    call scale_v(v_s, n_s, mass_s, Ek_scaled, T_set)
+    call scale_v(v_s, n_s, mass_s, Ek_scaled, T_set, T_scaled)
 
     write(*,*) '初始标度后动能kin2=',Ek_scaled
-    write(*,*) '初始标度后温度tmp=',T_Ek
+    write(*,*) '初始标度后温度tmp=',T_set
 
     call cal_average_momentum()
 
@@ -198,14 +198,13 @@ program translocation
     call update_force(2)
 
     do cur_step_pri=1,total_step_pri
-
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
         !!!!!! compute a(t+dt)
         call update_force(1)
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
-        call scale_v(v_p,n_p,mass_p,Ek,T_set)
+        call scale_v(v_p,n_p,mass_p,Ek,T_set,T_scaled)
         f0_p=f_p
-        call output(cur_step_pri)
+        !call output(cur_step_pri)
     enddo
 
     write(*,*)'循环开始'
@@ -231,7 +230,7 @@ program translocation
             call update_force(1)
 
             v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
-            call scale_v(v_p,n_p,mass_p,Ek,T_set)
+            call scale_v(v_p,n_p,mass_p,Ek,T_set,T_scaled)
             f0_p=f_p
             call output(cur_step_pri)
 
@@ -293,8 +292,8 @@ program translocation
 
                 call cal_average_momentum()
 
-                call scale_v(v_p,n_p,mass_p,Ek,T_set)
-                call scale_v(v_s,n_s,mass_s,Ek,T_set)
+                call scale_v(v_p,n_p,mass_p,Ek,T_set,T_scaled)
+                call scale_v(v_s,n_s,mass_s,Ek,T_set,T_scaled)
 
             endif
 
@@ -512,11 +511,11 @@ inbox=.true.
         enddo
     end subroutine
 
-    subroutine scale_v(v,n,mass,Ek,T)
+    subroutine scale_v(v,n,mass,Ek,T,T_out)
         implicit none
         integer n, i
         real(8), parameter :: Ek_fac = 1.5d0
-        real(8) v(3,n),mass,Ek,T,scalar,Ek1,T1
+        real(8) v(3,n),mass,Ek,T,scalar,Ek1,T_out,T1
 
         do i=1,3
             v(i,:) = v(i,:)-sum(v(i,:))/n
@@ -526,6 +525,7 @@ inbox=.true.
         scalar=sqrt(T/T1)
         v=v*scalar
         Ek=0.5*mass*sum(v**2)
+        T_out=Ek1/(Ek_fac*n)
 
     end subroutine
 
