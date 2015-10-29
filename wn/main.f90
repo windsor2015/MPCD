@@ -30,28 +30,28 @@ module parameters
     real(8) aver_v(3)
 
 
-!    real(8) x_bu(n_wall),y_bu(n_wall),z_bu(n_wall),x_bd(n_wall),y_bd(n_wall),z_bd(n_wall)  ! 上下边界坐标, b-boundary, u-up, d-down
-!    real(8) y_p(n_p),z_p(n_p),vr_p(n_p),vy_p(n_p),vz_p(n_p),r0_s(n_s),y11(n_s),z11(n_s)
-!    real(8) dx1(n_s),dy1(n_s),dz1(n_s),x12(n_s),y12(n_s),z12(n_s),y13(n_s)
-!    real(8) dx2(n_s),dy2(n_s),dz2(n_s),x0(n_s),y0(n_s),z0(n_s),x10(n_s),y10(n_s),z10(n_s)
-!    real(8) y_s(n_s),z_s(n_s),vr_s(n_s),vy_s(n_s),vz_s(n_s)
-!    real(8) vxx(4500),vyy(4500),vzz(4500),d1(n_p),dd0,dd1,dd
-!    real(8) vx10(n_s),vy10(n_s),vz10(n_s),g(n_s),gee,vu(n_s),vvu(n_s),Ek,U,ppx,ppy,ppz,x30(n_p),y30(n_p)
-!    real(8) forcex1_p(n_p),forcey1_p(n_p),forcez1_p(n_p),forcex2_p(n_p),forcey2_p(n_p),forcez2_p(n_p),kx3(n_p),ky3(n_p),kz3(n_p),f
-!    real(8) rannx(n_p),ranny(n_p),rannz(n_p),ran1,ran2,rco,lx,ly,lz
-!    real(8) vp,scalx,scaly,scalar_T,scalz,vp2,ranx,rany,ranz,rx,ry,rz,rr,rr1,rl
-!    real(8) sum_x,sum_y,sum_z,mx1,my1,mz1,Ek_real,Ek_scaled,kin11,kin22,Ek0,Ek1,Ek2
-!    real(8) rx1,ry1,rz1,rx2,ry2,rz2,rx3,ry3,rz3,r1,r2,r3,alpha,cos_alpha,sin_alpha
-!    real(8) v_probability,dlty,R22,xcm,ycm,zcm,S2mm(n_p),gg(n_p),ge
-!    real(8) x_up1(n_wall),y_up1(n_wall),z_up1(n_wall),x_down1(n_wall),y_down1(n_wall),z_down1(n_wall)
-!    real(8) rx00,ry00,rz00,rxyz,ddx1,ddy1,ddz1,ddx2,ddy2,ddz2,ddx3,ddy3,ddz3
-!    real(8) dt,sf,Ek_fac,dx0(n_s),dy0(n_s),dz0(n_s),theta,fai
-!    real(8) rrx1,rry1,rrx2,rry2,rrz2,rr2,rrx3,rry3,rrz3,rr3,rr4
-!    real(8) t0,t1,t2,cc,ss,sss,c1,c2,c3,c12,c22,c32,pc,pcc,pyx,yta
-!    real(8) s(3,3),d(3),vv(n_p),vvv(n_p),temp1,T_Ek,r,ll
-!    real(8) LJ_rb,FENE_max_distance,ld1,LJ_rc    !,   small
-!    integer count_s,count_p,j,sub,jj,p,n0,l,t,q1,cur_step_pri,cur_step,qq,total_step_pri,total_step,st01
-!    integer st0,st00,st1,st11,step_per_run,st22,a,n2,rand1_num,gama,num(n_cell_y)
+    !    real(8) x_bu(n_wall),y_bu(n_wall),z_bu(n_wall),x_bd(n_wall),y_bd(n_wall),z_bd(n_wall)  ! 上下边界坐标, b-boundary, u-up, d-down
+    !    real(8) y_p(n_p),z_p(n_p),vr_p(n_p),vy_p(n_p),vz_p(n_p),r0_s(n_s),y11(n_s),z11(n_s)
+    !    real(8) dx1(n_s),dy1(n_s),dz1(n_s),x12(n_s),y12(n_s),z12(n_s),y13(n_s)
+    !    real(8) dx2(n_s),dy2(n_s),dz2(n_s),x0(n_s),y0(n_s),z0(n_s),x10(n_s),y10(n_s),z10(n_s)
+    !    real(8) y_s(n_s),z_s(n_s),vr_s(n_s),vy_s(n_s),vz_s(n_s)
+    !    real(8) vxx(4500),vyy(4500),vzz(4500),d1(n_p),dd0,dd1,dd
+    !    real(8) vx10(n_s),vy10(n_s),vz10(n_s),g(n_s),gee,vu(n_s),vvu(n_s),Ek,U,ppx,ppy,ppz,x30(n_p),y30(n_p)
+    !    real(8) forcex1_p(n_p),forcey1_p(n_p),forcez1_p(n_p),forcex2_p(n_p),forcey2_p(n_p),forcez2_p(n_p),kx3(n_p),ky3(n_p),kz3(n_p),f
+    !    real(8) rannx(n_p),ranny(n_p),rannz(n_p),ran1,ran2,rco,lx,ly,lz
+    !    real(8) vp,scalx,scaly,scalar_T,scalz,vp2,ranx,rany,ranz,rx,ry,rz,rr,rr1,rl
+    !    real(8) sum_x,sum_y,sum_z,mx1,my1,mz1,Ek_real,Ek_scaled,kin11,kin22,Ek0,Ek1,Ek2
+    !    real(8) rx1,ry1,rz1,rx2,ry2,rz2,rx3,ry3,rz3,r1,r2,r3,alpha,cos_alpha,sin_alpha
+    !    real(8) v_probability,dlty,R22,xcm,ycm,zcm,S2mm(n_p),gg(n_p),ge
+    !    real(8) x_up1(n_wall),y_up1(n_wall),z_up1(n_wall),x_down1(n_wall),y_down1(n_wall),z_down1(n_wall)
+    !    real(8) rx00,ry00,rz00,rxyz,ddx1,ddy1,ddz1,ddx2,ddy2,ddz2,ddx3,ddy3,ddz3
+    !    real(8) dt,sf,Ek_fac,dx0(n_s),dy0(n_s),dz0(n_s),theta,fai
+    !    real(8) rrx1,rry1,rrx2,rry2,rrz2,rr2,rrx3,rry3,rrz3,rr3,rr4
+    !    real(8) t0,t1,t2,cc,ss,sss,c1,c2,c3,c12,c22,c32,pc,pcc,pyx,yta
+    !    real(8) s(3,3),d(3),vv(n_p),vvv(n_p),temp1,T_Ek,r,ll
+    !    real(8) LJ_rb,FENE_max_distance,ld1,LJ_rc    !,   small
+    !    integer count_s,count_p,j,sub,jj,p,n0,l,t,q1,cur_step_pri,cur_step,qq,total_step_pri,total_step,st01
+    !    integer st0,st00,st1,st11,step_per_run,st22,a,n2,rand1_num,gama,num(n_cell_y)
 end module
 
 
@@ -69,21 +69,21 @@ program translocation
 
     call random_seed()
     total_step_pri=3800000
-!    st1=3800000
-!    st11=10000
+    !    st1=3800000
+    !    st11=10000
     total_step=500000
-!    st0=199000
-!    st01=1000
-!    st00=200000
-!    step_per_run=1000
-!    st22=10000
+    !    st0=199000
+    !    st01=1000
+    !    st00=200000
+    !    step_per_run=1000
+    !    st22=10000
     total_step_per_rot=200
-!    alpha=130*pi/180
-!
-!    rand1_num=-4500
-!
-!
-!    temp1=1
+    !    alpha=130*pi/180
+    !
+    !    rand1_num=-4500
+    !
+    !
+    !    temp1=1
 
     box_size = [n_cell_x, n_cell_y, n_cell_z]
     half_box_size = box_size/2
@@ -210,12 +210,12 @@ program translocation
     write(*,*)'循环开始'
     !!! compute a(t-dt)
     call update_force(2)
-!    do i=1,256
-!        x_up1(i)=x_bu(i)
-!        z_up1(i)=z_bu(i)
-!        x_down1(i)=x_bd(i)
-!        z_down1(i)=z_bd(i)
-!    enddo
+    !    do i=1,256
+    !        x_up1(i)=x_bu(i)
+    !        z_up1(i)=z_bu(i)
+    !        x_down1(i)=x_bd(i)
+    !        z_down1(i)=z_bd(i)
+    !    enddo
 
     x0_s=x_s
 
@@ -247,28 +247,28 @@ program translocation
         do j=1,n_p
 
             if(box_size(1)*nint((x_p(1,j)-half_box_size(1))/box_size(1))/=ppx &
-            .or.box_size(3)*nint((x_p(3,j)-half_box_size(3))/box_size(3))/=ppz)then
-!                do i=1,256
-!                    x_bu(i)=x_up1(i)
-!                    z_bu(i)=z_up1(i)
-!                    x_bd(i)=x_down1(i)
-!                    z_bd(i)=z_down1(i)
-!                enddo
+                    .or.box_size(3)*nint((x_p(3,j)-half_box_size(3))/box_size(3))/=ppz)then
+                !                do i=1,256
+                !                    x_bu(i)=x_up1(i)
+                !                    z_bu(i)=z_up1(i)
+                !                    x_bd(i)=x_down1(i)
+                !                    z_bd(i)=z_down1(i)
+                !                enddo
 
                 x_s=x0_s
 
                 ppx=box_size(1)*nint((x_p(1,j)-half_box_size(1))/box_size(1))
                 ppz=box_size(3)*nint((x_p(3,j)-half_box_size(3))/box_size(3))
 
-!                do i=1,256
-!                    x_bu(i)=x_bu(i)+ppx
-!                    z_bu(i)=z_bu(i)+ppz
-!                    x_bd(i)=x_bd(i)+ppx
-!                    z_bd(i)=z_bd(i)+ppz
-!                enddo
+                !                do i=1,256
+                !                    x_bu(i)=x_bu(i)+ppx
+                !                    z_bu(i)=z_bu(i)+ppz
+                !                    x_bd(i)=x_bd(i)+ppx
+                !                    z_bd(i)=z_bd(i)+ppz
+                !                enddo
 
-                    x_s(1,:)=x_s(1,:)+ppx
-                    x_s(3,:)=x_s(3,:)+ppz
+                x_s(1,:)=x_s(1,:)+ppx
+                x_s(3,:)=x_s(3,:)+ppz
 
                 x_s = x_s + v_s*time_step_s
                 x_s(1,:) = x_s(1,:) -0.1*(x_s(2,:)**2-15.0*x_s(2,:))*v_probability*time_step_s
@@ -276,7 +276,7 @@ program translocation
                 do i=1,n_s
                     !y12(i)=y_s(i)
                     !if(y_s(i)>=box_size_y.or.y_s(i)<=0)then
-                        !y_s(i)=y12(i)
+                    !y_s(i)=y12(i)
                     !endif
                 enddo
 
@@ -438,9 +438,10 @@ contains
 
     logical function inbox(x,ix,iy,iz)
         implicit none
-real(8) x(3)
-integer ix,iy,iz
-inbox=.true.
+        real(8) x(3)
+        integer ix,iy,iz
+
+        inbox=.true.
     end function
 
     subroutine cal_average_momentum()
@@ -532,34 +533,34 @@ inbox=.true.
     subroutine output(step)
         implicit none
         integer step
-!        if(MOD(cur_step_pri,st1)==0)then
-!
-!            call tran(cur_step_pri+5,filename)
-!            open(31,file=filename)
-!            write(31,*) n_s+512+n_p
-!            write(31,*)'cohar'
-!
-!            do i=1,n_p
-!                write(31,'(a4,f17.7,f13.7,f13.7)')'p',r_p(i),y_p(i),z_p(i)
-!            enddo
-!
-!            do i=1,512
-!                write(31,'(a4,f17.7,f13.7,f13.7)')'o',x_bu(i),y_bu(i),z_bu(i)
-!            enddo
-!
-!            do i=1,512
-!                write(31,'(a4,f17.7,f13.7,f13.7)')'o',x_bd(i),y_bd(i),z_bd(i)
-!            enddo
-!            do i=1,n_s
-!                write(31,'(a4,f17.7,f13.7,f13.7)') 'f',r_s(i),y_s(i),z_s(i)
-!            end do
-!            close(31)
-!
-!        endif
-!
-!        if(MOD(cur_step_pri,st11)==0)then
-!            write(70,*) cur_step_pri,U1
-!        endif
+        !        if(MOD(cur_step_pri,st1)==0)then
+        !
+        !            call tran(cur_step_pri+5,filename)
+        !            open(31,file=filename)
+        !            write(31,*) n_s+512+n_p
+        !            write(31,*)'cohar'
+        !
+        !            do i=1,n_p
+        !                write(31,'(a4,f17.7,f13.7,f13.7)')'p',r_p(i),y_p(i),z_p(i)
+        !            enddo
+        !
+        !            do i=1,512
+        !                write(31,'(a4,f17.7,f13.7,f13.7)')'o',x_bu(i),y_bu(i),z_bu(i)
+        !            enddo
+        !
+        !            do i=1,512
+        !                write(31,'(a4,f17.7,f13.7,f13.7)')'o',x_bd(i),y_bd(i),z_bd(i)
+        !            enddo
+        !            do i=1,n_s
+        !                write(31,'(a4,f17.7,f13.7,f13.7)') 'f',r_s(i),y_s(i),z_s(i)
+        !            end do
+        !            close(31)
+        !
+        !        endif
+        !
+        !        if(MOD(cur_step_pri,st11)==0)then
+        !            write(70,*) cur_step_pri,U1
+        !        endif
     end subroutine
 
 end program translocation
