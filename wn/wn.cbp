@@ -22,7 +22,8 @@
 				<Option compiler="gfortran" />
 				<Compiler>
 					<Add option="-ffast-math" />
-					<Add option="-O2" />
+					<Add option="-O3" />
+					<Add option="-finline-functions -finline-functions-called-once -funroll-loops" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
@@ -32,8 +33,16 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Linker>
+			<Add option="-L." />
+			<Add option="-lblas" />
+		</Linker>
 		<Unit filename="main.f90">
 			<Option weight="0" />
+		</Unit>
+		<Unit filename="mpc.f90">
+			<Option weight="0" />
+			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
 		<Extensions>
 			<code_completion />

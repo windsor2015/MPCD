@@ -1,4 +1,6 @@
+!DIR$ ATTRIBUTES FORCEINLINE :: FENE, LJ, BEND, inbox, scale_v
 module parameters
+    !use ifport
     implicit none
     ! 下标约定: p - particle, s - solution
 
@@ -67,6 +69,7 @@ program translocation
 
     character(len=20) filename
 
+    call test()
     call random_seed()
     total_step_pri=3800000
     !    st1=3800000
@@ -457,24 +460,18 @@ contains
                     l(1)=cos(fai)*SQRT(1-theta**2)
                     l(2)=sin(fai)*SQRT(1-theta**2)
                     l(3)=theta
-                    suml=sum(l)
-                    matrix=0
 
-                    do i=1,3
-                        do j=1,3
-                            matrix(i,j)=l(i)*l(j)
-                            if (i/=j) then
-                                if (i<j) then
-                                    matrix(i,j)=matrix(i,j)*(1-c)+(-1)**(i+j)*(suml-l(i)-l(j))*s
-                                else
-                                    matrix(i,j)=matrix(i,j)*(1-c)-(-1)**(i+j)*(suml-l(i)-l(j))*s
-                                endif
-                            else
-                                matrix(i,j)=matrix(i,j)+(1-l(i)**2)*c
-                            endif
+                    matrix(1,1) = l(1)*l(1)*(1-c) + c
+                    matrix(1,2) = l(1)*l(2)*(1-c) - s*l(3)
+                    matrix(1,3) = l(1)*l(3)*(1-c) + s*l(2)
 
-                        enddo
-                    enddo
+                    matrix(2,1) = l(2)*l(1)*(1-c) + s*l(3)
+                    matrix(2,2) = l(2)*l(2)*(1-c) + c
+                    matrix(2,3) = l(2)*l(3)*(1-c) - s*l(1)
+
+                    matrix(3,1) = l(3)*l(1)*(1-c) - s*l(2)
+                    matrix(3,2) = l(3)*l(2)*(1-c) + s*l(1)
+                    matrix(3,3) = l(3)*l(3)*(1-c) + c
 
                     momentum=0
                     count_p=0
@@ -553,6 +550,185 @@ contains
         !        if(MOD(cur_step_pri,st11)==0)then
         !            write(70,*) cur_step_pri,U1
         !        endif
+    end subroutine
+
+    subroutine test()
+        implicit none
+        integer ix,iy,iz,k,count_p,count_s,i,j,n
+        real(8) momentum(3), matrix(3,3), aver_momentum(3),l(3),suml,fai,theta,y(3),ll(3,1), sumv2
+        real start,finish
+        real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
+        real(8) v(3,1)
+        fai=2.0*pi*rand(0)
+        theta=2.0*rand(0)-1
+        l(1)=cos(fai)*SQRT(1-theta**2)
+        l(2)=sin(fai)*SQRT(1-theta**2)
+        l(3)=theta
+        suml=sum(l)
+        n=100000000
+
+        !goto 3
+        call cpu_time(start)
+        do k=1,n
+            matrix(1,1) = l(1)*l(1)*(1-c) + c
+            matrix(1,2) = l(1)*l(2)*(1-c) - s*l(3)
+            matrix(1,3) = l(1)*l(3)*(1-c) + s*l(2)
+
+            matrix(2,1) = l(2)*l(1)*(1-c) + s*l(3)
+            matrix(2,2) = l(2)*l(2)*(1-c) + c
+            matrix(2,3) = l(2)*l(3)*(1-c) - s*l(1)
+
+            matrix(3,1) = l(3)*l(1)*(1-c) - s*l(2)
+            matrix(3,2) = l(3)*l(2)*(1-c) + s*l(1)
+            matrix(3,3) = l(3)*l(3)*(1-c) + c
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') matrix
+
+        call cpu_time(start)
+        do k=1,n
+            matrix=0
+            do i=1,3
+                do j=1,3
+                    matrix(i,j)=l(i)*l(j)*(1-c)
+                    if (i/=j) then
+                        if (i<j) then
+                            matrix(i,j)=matrix(i,j)+(-1)**(i+j)*(suml-l(i)-l(j))*s
+                        else
+                            matrix(i,j)=matrix(i,j)-(-1)**(i+j)*(suml-l(i)-l(j))*s
+                        endif
+                    else
+                        matrix(i,j)=matrix(i,j)+c
+                    endif
+
+                enddo
+            enddo
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') matrix
+
+        call cpu_time(start)
+        do k=1,n
+            matrix=0
+            do i=1,3
+                do j=1,3
+                    matrix(i,j)=l(i)*l(j)
+                    if (i/=j) then
+                        if (i<j) then
+                            matrix(i,j)=matrix(i,j)*(1-c)+(-1)**(i+j)*(suml-l(i)-l(j))*s
+                        else
+                            matrix(i,j)=matrix(i,j)*(1-c)-(-1)**(i+j)*(suml-l(i)-l(j))*s
+                        endif
+                    else
+                        matrix(i,j)=matrix(i,j)+(1-l(i)**2)*c
+                    endif
+
+                enddo
+            enddo
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') matrix
+
+        ll(:,1)=l
+        call cpu_time(start)
+        do k=1,n
+            matrix=0
+            matrix(1,2)=-s*l(3)
+            matrix(1,3)=s*l(2)
+            matrix(2,3)=-s*l(1)
+            matrix=matrix-transpose(matrix)+matmul(ll,transpose(ll))*(1-c)
+            do i=1,3
+                matrix(i,i)=matrix(i,i)+c
+            enddo
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') matrix
+
+        call cpu_time(start)
+        do k=1,n
+            matrix=0
+            matrix(1,2)=-s*l(3)
+            matrix(1,3)=s*l(2)
+            matrix(2,3)=-s*l(1)
+            matrix=matrix-transpose(matrix)
+            do i=1,3
+                matrix(i,i)=matrix(i,i)+c
+            enddo
+            call dgemm('N','T',3,3,1,1-c,l,3,l,3,1.d0,matrix,3)
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') matrix
+
+        call cpu_time(start)
+        do k=1,n
+            y=matmul(matrix,l)
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') y
+
+        call cpu_time(start)
+        do k=1,n
+            call dgemv('N',3,3,1d0,matrix,3,l,1,1d0,y,1)
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') y
+
+        call cpu_time(start)
+        do k=1,n
+            y(1)=matrix(1,1)*l(1) + matrix(1,2)*l(2) + matrix(1,3)*l(3)
+            y(2)=matrix(2,1)*l(1) + matrix(2,2)*l(2) + matrix(2,3)*l(3)
+            y(3)=matrix(3,1)*l(1) + matrix(3,2)*l(2) + matrix(3,3)*l(3)
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') y
+
+        call cpu_time(start)
+        do k=1,n
+            y(1)=sum(matrix(1,:)*l)
+            y(2)=sum(matrix(2,:)*l)
+            y(3)=sum(matrix(3,:)*l)
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') y
+
+
+        3 call random_number(v)
+
+        call cpu_time(start)
+        sumv2=0
+        do k=1,n
+            sumv2=sumv2+sum(v**2)
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,*) sumv2
+
+        call cpu_time(start)
+        do k=1,n
+            !sumv2=0
+            do i=1,3;do j=1,1
+                sumv2=sumv2 + v(i,j)**2
+            enddo;enddo
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,*) sumv2
+
+
+    end subroutine
+
+    subroutine tic()
+        implicit none
+
     end subroutine
 
 end program translocation
