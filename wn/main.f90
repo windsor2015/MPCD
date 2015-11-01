@@ -427,10 +427,13 @@ contains
 
     logical function inbox(x,ix,iy,iz)
         implicit none
-        real(8) x(3)
+        real(8) x(3), temp(3)
         integer ix,iy,iz
 
-        inbox=.true.
+        temp=x/box_size_unit-[ix,iy,iz]*1d0
+        inbox = temp(1)>=0 .and. temp(1)<1 &
+            .and. temp(2)>=0 .and. temp(2)<1 &
+            .and. temp(3)>=0 .and. temp(3)<1
     end function
 
     subroutine cal_average_momentum()
