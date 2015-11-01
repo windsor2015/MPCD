@@ -195,7 +195,7 @@ program translocation
 
     ! 预处理
     !!! compute a(t-dt)
-    call update_force(2)
+    call update_force(0)
 
     do cur_step_pri=1,total_step_pri
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
@@ -209,7 +209,7 @@ program translocation
 
     write(*,*)'循环开始'
     !!! compute a(t-dt)
-    call update_force(2)
+    call update_force(0)
     !    do i=1,256
     !        x_up1(i)=x_bu(i)
     !        z_up1(i)=z_bu(i)
@@ -391,46 +391,35 @@ contains
         real(8) U, temp(3)
 
         f_p=0
-
-        !!!!!! UFENE(r) force
         U=0
-        do i=2,n_p-1
-            do j=i+1,i-1,-2
-                call FENE(f_p(:,i),U,x_p(:,i)-x_p(:,j))
-            enddo
-        enddo
+        temp=0
         ! 链两端
         call FENE(f_p(:,1),U,x_p(:,1)-x_p(:,2))
         call FENE(f_p(:,n_p),U,x_p(:,n_p)-x_p(:,n_p-1))
-        !!!!!! end UFENE(r) force
-
-        !!!!!! ULJ(r) force
+        !$omp parallel do private(j,temp) reduction(+:U,f_p)
         do i=1,n_p
-            do j=1,n_p
-                if(i/=j)then
+            if (i>1 .and. i<n_p) then
+                ! UFENE(r) force
+                call FENE(f_p(:,i),U,x_p(:,i)-x_p(:,j+1))
+                call FENE(f_p(:,i),U,x_p(:,i)-x_p(:,j-1))
+                ! bend energy
+                call BEND(f_p(:,i),U,x_p(:,i+1)-x_p(:,i),x_p(:,i)-x_p(:,i-1))
+            endif
+            ! ULJ(r) force
+            if (i<n_p) then
+                do j=i+1,n_p
                     call LJ(f_p(:,i),U,x_p(:,i)-x_p(:,j))
-                endif
-            enddo
-        enddo
-        !!!!!! end ULJ(r) force
-
-
-        !!!!!!!bend energy!!!!!!!!!
-        do i=2,n_p-1
-            call BEND(f_p(:,i),U,x_p(:,i+1)-x_p(:,i),x_p(:,i)-x_p(:,i-1))
-        enddo
-        !!!!!!!!!!!!!!!!!!!end bend energy
-
-        ! force on boundaries
-        temp=0
-        do i=1,n_p
+                    call LJ(f_p(:,j),U,x_p(:,j)-x_p(:,i))
+                enddo
+            endif
             temp(2)=x_p(2,i)
             call LJ(f_p(:,i),U,temp)
             temp(2)=n_cell_y-x_p(2,i)
             call LJ(f_p(:,i),U,temp)
         enddo
+        !$omp end parallel do
 
-        if (mode==2) then
+        if (mode==0) then
             f0_p=f_p
         endif
 
