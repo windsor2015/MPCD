@@ -286,7 +286,7 @@ program translocation
                 x_s(1,:)=x_s(1,:)+(randx-0.5)*box_size_unit
                 x_s(3,:)=x_s(3,:)+(randz-0.5)*box_size_unit
 
-                x_s(1,:)=x_s(1,i)-box_size(1)*nint((x_s(1,:)-(ppx+half_box_size(1)))/box_size(1))
+                x_s(1,:)=x_s(1,:)-box_size(1)*nint((x_s(1,:)-(ppx+half_box_size(1)))/box_size(1))
                 x_s(3,:)=x_s(3,:)-box_size(3)*nint((x_s(3,:)-(ppz+half_box_size(3)))/box_size(3))
 
                 !if(cur_step>=st0.and.cur_step<st00.and.MOD(cur_step,st22)==0)then
