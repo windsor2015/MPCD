@@ -445,7 +445,7 @@ contains
         integer ix,iy,iz,k,count_p,count_s,i,j
         real(8) momentum(3), matrix(3,3), aver_momentum(3),l(3),suml,fai,theta
         real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
-        real(8) v_aver_p(3), v_aver_s(3), l(3)
+        real(8) v_aver_p(3), v_aver_s(3), temp(3)
         logical mask_p(n_p), mask_p(n_s)
         ! calculate average momentum of each cell
         k=0
@@ -492,10 +492,10 @@ contains
 
                     do i=1,n_p
                         if(mask_p(i)) then
-                            l=v_p(i)-v_aver_p
-                            v_p(1,i)=v_aver_p(1) + matrix(1,1)*l(1) + matrix(1,2)*l(2) + matrix(1,3)*l(3)
-                            v_p(2,i)=v_aver_p(2) + matrix(2,1)*l(1) + matrix(2,2)*l(2) + matrix(2,3)*l(3)
-                            v_p(3,i)=v_aver_p(3) + matrix(3,1)*l(1) + matrix(3,2)*l(2) + matrix(3,3)*l(3)
+                            temp=v_p(i)-v_aver_p
+                            v_p(1,i)=v_aver_p(1) + matrix(1,1)*temp(1) + matrix(1,2)*temp(2) + matrix(1,3)*temp(3)
+                            v_p(2,i)=v_aver_p(2) + matrix(2,1)*temp(1) + matrix(2,2)*temp(2) + matrix(2,3)*temp(3)
+                            v_p(3,i)=v_aver_p(3) + matrix(3,1)*temp(1) + matrix(3,2)*temp(2) + matrix(3,3)*temp(3)
                         endif
                     enddo
 
@@ -516,10 +516,10 @@ contains
 
                     do i=1,n_s
                         if(mask_s(i)) then
-                            l=v_s(i)-v_aver_s
-                            v_s(1,i)=v_aver_s(1) + matrix(1,1)*l(1) + matrix(1,2)*l(2) + matrix(1,3)*l(3)
-                            v_s(2,i)=v_aver_s(2) + matrix(2,1)*l(1) + matrix(2,2)*l(2) + matrix(2,3)*l(3)
-                            v_s(3,i)=v_aver_s(3) + matrix(3,1)*l(1) + matrix(3,2)*l(2) + matrix(3,3)*l(3)
+                            temp=v_s(i)-v_aver_s
+                            v_s(1,i)=v_aver_s(1) + matrix(1,1)*temp(1) + matrix(1,2)*temp(2) + matrix(1,3)*temp(3)
+                            v_s(2,i)=v_aver_s(2) + matrix(2,1)*temp(1) + matrix(2,2)*temp(2) + matrix(2,3)*temp(3)
+                            v_s(3,i)=v_aver_s(3) + matrix(3,1)*temp(1) + matrix(3,2)*temp(2) + matrix(3,3)*temp(3)
                         endif
                     enddo
 
