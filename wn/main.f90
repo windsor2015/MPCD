@@ -445,6 +445,8 @@ contains
         integer ix,iy,iz,k,count_p,count_s,i,j
         real(8) momentum(3), matrix(3,3), aver_momentum(3),l(3),suml,fai,theta
         real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
+        real(8) v_aver_p(3), v_aver_s(3), l(3)
+        logical mask_p(n_p), mask_p(n_s)
         ! calculate average momentum of each cell
         k=0
         do ix=0,n_cell_x-1
@@ -475,19 +477,49 @@ contains
 
                     momentum=0
                     count_p=0
+                    v_aver_p=0d0
+                    mask_p=.false.
                     do i=1,n_p
                         if(inbox(x_p(:,i),ix,iy,iz))then
                             momentum = momentum + v_p(:,i)*mass_p
                             count_p=count_p+1
+                            mask_p(i)=.true.
+                            v_aver_p=v_aver_p+v_p(:,i)
                             v_p(:,i)=matmul(matrix,v_p(:,i))
                         endif
                     enddo
+                    v_aver_p=v_aver_p/count_p
+
+                    do i=1,n_p
+                        if(mask_p(i)) then
+                            l=v_p(i)-v_aver_p
+                            v_p(1,i)=v_aver_p(1) + matrix(1,1)*l(1) + matrix(1,2)*l(2) + matrix(1,3)*l(3)
+                            v_p(2,i)=v_aver_p(2) + matrix(2,1)*l(1) + matrix(2,2)*l(2) + matrix(2,3)*l(3)
+                            v_p(3,i)=v_aver_p(3) + matrix(3,1)*l(1) + matrix(3,2)*l(2) + matrix(3,3)*l(3)
+                        endif
+                    enddo
+
                     count_s=0
+                    v_aver_s=0d0
+                    v_aver_s=0d0
+                    mask_s=.false.
                     do i=1,n_s
                         if(inbox(x_s(:,i),ix,iy,iz))then
                             momentum = momentum + v_s(:,i)*mass_s
                             count_s=count_s+1
+                            mask_s(i)=.true.
+                            v_aver_s=v_aver_s+v_s(:,i)
                             v_s(:,i)=matmul(matrix,v_s(:,i))
+                        endif
+                    enddo
+                    v_aver_s=v_aver_s/count_s
+
+                    do i=1,n_s
+                        if(mask_s(i)) then
+                            l=v_s(i)-v_aver_s
+                            v_s(1,i)=v_aver_s(1) + matrix(1,1)*l(1) + matrix(1,2)*l(2) + matrix(1,3)*l(3)
+                            v_s(2,i)=v_aver_s(2) + matrix(2,1)*l(1) + matrix(2,2)*l(2) + matrix(2,3)*l(3)
+                            v_s(3,i)=v_aver_s(3) + matrix(3,1)*l(1) + matrix(3,2)*l(2) + matrix(3,3)*l(3)
                         endif
                     enddo
 
