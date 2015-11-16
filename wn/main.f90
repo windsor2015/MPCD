@@ -71,7 +71,7 @@ contains
     end subroutine
 
     subroutine update_force(mode)
-        use parameters, only : x_p, f_p, n_p,f0_p
+        !use parameters, only : x_p, f_p, n_p,f0_p
         implicit none
         integer mode, i, j
         real(8) U, temp(3)
@@ -124,13 +124,13 @@ contains
     end function
 
     subroutine cal_collision_velocity()
-        use parameters
+        !use parameters
         implicit none
         integer ix,iy,iz,k,count_p,count_s,i,j
         real(8) momentum(3), matrix(3,3), aver_momentum(3),l(3),suml,fai,theta
         real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
         real(8) v_aver_p(3), v_aver_s(3), v_aver(3), temp(3)
-        logical mask_p(n_p), mask_p(n_s)
+        logical mask_p(n_p), mask_s(n_s)
         ! calculate velocity of all particles in each cell
         k=0
         do ix=0,n_cell_x-1
@@ -370,7 +370,7 @@ contains
             do i=1,3
                 matrix(i,i)=matrix(i,i)+c
             enddo
-            call dgemm('N','T',3,3,1,1-c,l,3,l,3,1.d0,matrix,3)
+            !call dgemm('N','T',3,3,1,1-c,l,3,l,3,1.d0,matrix,3)
         enddo
         call cpu_time(finish)
         write(*,*) finish-start
@@ -386,7 +386,7 @@ contains
 
         call cpu_time(start)
         do k=1,n
-            call dgemv('N',3,3,1d0,matrix,3,l,1,1d0,y,1)
+            !call dgemv('N',3,3,1d0,matrix,3,l,1,1d0,y,1)
         enddo
         call cpu_time(finish)
         write(*,*) finish-start
@@ -451,7 +451,7 @@ program Poissonfield
 
     character(len=20) filename
 
-    call test()
+    !call test()
     call random_seed()
     total_step_pri=3800000
     !    st1=3800000
@@ -576,7 +576,7 @@ program Poissonfield
     write(*,*) '初始标度后动能kin2=',Ek_scaled
     write(*,*) '初始标度后温度tmp=',T_set
 
-    call cal_average_momentum()
+    call cal_collision_velocity()
 
     ! 预处理
     !!! compute a(t-dt)
@@ -675,7 +675,7 @@ program Poissonfield
                 !    write(100,*)cur_step,j
                 !endif
 
-                call cal_average_momentum()
+                call cal_collision_velocity()
 
                 call scale_v(v_p,n_p,mass_p,Ek,T_set,T_scaled)
                 call scale_v(v_s,n_s,mass_s,Ek,T_set,T_scaled)
@@ -706,4 +706,4 @@ program Poissonfield
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-end program translocation
+end program Poissonfield
