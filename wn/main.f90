@@ -21,42 +21,46 @@ module parameters
     ! solution
     real(8), dimension(3,n_s) :: x_s, v_s, f_s, x0_s
     ! boundaaries, 1~nb-up, nb+1~2nb-down
-    real(8), dimension(3,2*n_b) :: x_b, v_b, f_b
+    real(8), dimension(3,2*10000) :: x_b, v_b, f_b
 
     real(8) box_size_unit, half_box_size_unit, box_size(3), half_box_size(3)
 
     real(8) randnum_group(3,n_s)
 
-    real(8) aver_v(3)
+    real(8) aver_v(3), distant
 
     real(8), parameter::sigma=1, epson=1
 
 contains
 
-    subroutine test_rand
-        integer,parameter :: seed = 86456
-
-        call srand(seed)
-        print *, rand(), rand(), rand(), rand()
-        print *, rand(seed), rand(), rand(), rand()
-    end subroutine test_rand
+    function distance(x1,x2)
+        implicit none
+        integer i,j
+        real(8) distance,x1(3),x2(3)
+        distance=norm2(x1-x2)
+        return
+    endfunction
 
     subroutine init()
         implicit none
-        integer i,j,k,count_number
+        integer i,j,k,l,h,count_number,dx(2,4),output_file
         real(8) radius,lz,distant
+        logical success
+        integer,parameter :: seed = 86456
 
-        open(12,file='dump.cylinder.lammpstrj')
-        write(12,*)'ITEM:TIMESTEP'
-        write(12,'(I9)')0
-        write(12,*)'ITEM:NUMBER OF ATOMS'
-        write(12,'(I6)')40300
+        radius=3
+        output_file=12
+        open(output_file,file='dump.cylinder.lammpstrj')
+        write(output_file,*)'ITEM:TIMESTEP'
+        write(output_file,'(I9)')0
+        write(output_file,*)'ITEM:NUMBER OF ATOMS'
+        write(output_file,'(I6)')40300
 
-        write(12,*)'ITEM:BOX BOUNDS'
-        write(12,'(2F7.1)')-radius,radius
-        write(12,'(2F7.1)')-radius,radius
-        write(12,'(2F7.1)')-n_cell_z/2,n_cell_z/2.0
-        write(12,*)'ITEM:ATOMS id type x y z'
+        write(output_file,*)'ITEM:BOX BOUNDS'
+        write(output_file,'(2F7.1)')-radius,radius
+        write(output_file,'(2F7.1)')-radius,radius
+        write(output_file,'(2F7.1)')-n_cell_z/2,n_cell_z/2.0
+        write(output_file,*)'ITEM:ATOMS id type x y z'
 
         !!!!!!!!!以下是cylinder channel初值!!!!!!!!!!!!!!
         n_b=0
@@ -72,108 +76,80 @@ contains
                     x_b(2,n_b)=radius*sin(dble(i)*pi/dble(k)+pi/dble(2*k))
                 endif
                 x_b(3,n_b)=dble(j-n_cell_z)*0.5
-                write(12,'(2I6,3F13.4)') k,1,x_b(:,n_b)
+                write(output_file,'(2I6,3F13.4)') k,1,x_b(:,n_b)
             enddo
         enddo
 
-        write(*,*)"cylinder单体数目："，n_b
+        write(*,*)"cylinder单体数目：", n_b
 
         !!!!!!!!!以下是polymer chain初值!!!!!!!!!!!!!!
-        x_p(1,1)=0.0
-        x_p(2,1)=0.0
-        x_p(3,1)=-5.0
+        x_p(1,1)=0d0
+        x_p(2,1)=0d0
+        x_p(3,1)=-5d0
 
         dx(1,1)=0
-        dx(2,1)=1.0
+        dx(2,1)=1d0
 
         dx(1,2)=0
-        dx(2,2)=-1.0
+        dx(2,2)=-1d0
 
-        dx(1,3)=1.0
+        dx(1,3)=1d0
         dx(2,3)=0
 
-        dx(1,4)=-1.0
+        dx(1,4)=-1d0
         dx(2,4)=0
 
+        call srand(seed)
         do i=2,n_p
+            success=.false.
+            do count_number=1,11116
 
-            print*,i
-            count_number=0
-            call random_seed()
-            call random_number(j)
-            200  h=1+int(4*rand(j))
-
-            if(count_number>11116)then
-
-                x_p(1,i)=x_p(1,i)+0
-                x_p(2,i)=x_p(2,i)+0
-                x_p(3,i)=x_p(3,i)+1.0
-
-                print*,(x_p(1,i)**2+x_p(2,i)**2)**(0.5)
-                cycle
-            endif
-
-            if(mod(i,5)==0)then
-                x_p(1,i)=x_p(1,i-1)+0
-                x_p(2,i)=x_p(2,i-1)+0
-                x_p(3,i)=x_p(3,i-1)+1.0
-
-            else
-                x_p(1,i)=x_p(1,i-1)+dx(1,h)
-                x_p(2,i)=x_p(2,i-1)+dx(2,h)
-                x_p(3,i)=x_p(3,i-1)
-
-            endif
-
-
-            if(x_p(3,i)>n_cell_z/2.0.or.x_p(3,i)<-n_cell_z/2.0)then
-                x_p(3,i)=x_p(3,i)-nint(x_p(3,i)/n_cell_z)*n_cell_z
-            endif
-
-            r=sqrt(x_p(1,i)**2+x_p(2,i)**2)
-            if(r>radius-1.0)then
-                count_number=count_number+1
-                goto 200
-            endif
-
-            if(i>1)then
-                rz=x_p(3,i)-x_p(3,i-1)
-                rz=rz-n_cell_z*nint(rz/n_cell_z)
-                distant=((x_p(1,i)-x_p(1,(i-1)))**2+(x_p(2,i)-x_p(2,(i-1)))**2+rz**2)**(0.5)
-                if(distant<0.9.or.distant>1.1)then
-                    count_number=count_number+1
-                    goto 200
+                h=1+int(4*rand())
+                ! 当步数是5的倍数直接z轴加一
+                if(mod(i,5)==0)then
+                    x_p(1,i)=x_p(1,i-1)+0
+                    x_p(2,i)=x_p(2,i-1)+0
+                    x_p(3,i)=x_p(3,i-1)+1.0
+                else
+                    x_p(1,i)=x_p(1,i-1)+dx(1,h)
+                    x_p(2,i)=x_p(2,i-1)+dx(2,h)
+                    x_p(3,i)=x_p(3,i-1)
                 endif
-            endif
 
-            if(i>2)then
-                do k=i-2,1,-1
-                    rz=x_p(3,i)-x_p(3,k)
-                    rz=rz-n_cell_z*nint(rz/n_cell_z)
-                    distant=((x_p(1,i)-x_p(1,k))**2+(x_p(2,i)-x_p(2,k))**2+rz**2)**(0.5)
-                    if(distant<1.1)then
+                ! 和壁保持距离
+                if(sqrt(x_p(1,i)**2+x_p(2,i)**2)>radius-1.0) then
+                    cycle
+                endif
+
+                ! 和除一级近邻外之前全部要保持一定距离
+                success = .true.
+                do k=1,i-2
+                    if(norm2(x_p(:,i)-x_p(:,k))<1.1)then
+                        success = .false.
                         exit
                     endif
                 enddo
 
-                if(k>0)then
-                    count_number=count_number+1
-                    goto 200
+                if (success) then
+                    exit
                 endif
+            enddo
+
+            if (.not. success) then
+                x_p(1,i)=x_p(1,i)+0
+                x_p(2,i)=x_p(2,i)+0
+                x_p(3,i)=x_p(3,i)+1.0
             endif
-
-            distant=(x_p(1,i)**2+x_p(2,i)**2)**(0.5)
-
-            if(distant>radius-1.0)then
-                count_number=count_number+1
-                goto 200
-            endif
-
-            write(output_file,'(2I6,3F13.4)') i,2,x_p(:,i)
-
         enddo
 
-        write(*,*)"polymer单体数目："，n_p
+        do i=1,n_p
+            if (x_p(3,i)>n_cell_z/2d0.or.x_p(3,i)<-n_cell_z/2d0) then
+                x_p(3,i)=x_p(3,i)-nint(x_p(3,i)/n_cell_z)*n_cell_z
+            endif
+            write(output_file,'(2I6,3F13.4)') i,2,x_p(:,i)
+        enddo
+
+        write(*,*)"polymer单体数目：", n_p
 
         !!!!!!!!!!!!!!!!以下是solution粒子的初值!!!!!!!!!!!!!!
 
@@ -182,14 +158,14 @@ contains
             do j=0,int(n_cell_y)
                 do k=0,int(n_cell_z)
                     l=l+1
-                    x_s(1,l)=dble(i-int(n_cell_x)/2)*sid
-                    x_s(2,l)=dble(j-int(n_cell_y)/2)*sid
-                    x_s(3,l)=dble(k-int(n_cell_z)/2)*sid
+                    x_s(1,l)=dble(i-int(n_cell_x)/2)*box_size_unit
+                    x_s(2,l)=dble(j-int(n_cell_y)/2)*box_size_unit
+                    x_s(3,l)=dble(k-int(n_cell_z)/2)*box_size_unit
                     write(output_file,'(2I6,3F13.4)') i,3,x_s(:,l)
                 enddo
             enddo
         enddo
-        write(*,*)"solvent单体数目："，n_s
+        write(*,*)"solvent单体数目：", n_s
     endsubroutine
 
     subroutine FENE(f,U,rx)
@@ -230,7 +206,7 @@ contains
     end subroutine
 
     subroutine update_force(mode)
-        !use parameters, only : x_p, f_p, n_p,f0_p
+    !    use parameters, only : x_p, f_p, n_p,f0_p
         implicit none
         integer mode, i, j
         real(8) U, temp(3)
@@ -283,7 +259,7 @@ contains
     end function
 
     subroutine cal_collision_velocity()
-        !use parameters
+    !    use parameters
         implicit none
         integer ix,iy,iz,k,count_p,count_s,i
         real(8) momentum(3), matrix(3,3), l(3), fai, theta
@@ -395,9 +371,8 @@ contains
 
     subroutine output(step)
         implicit none
-<<<<<<< HEAD
-        integer cur_step,output_interval_step,equilibrium_interval_step,output_file,energy_file
-        !  energy_file=11
+        integer cur_step,step,output_interval_step,equilibrium_interval_step,output_file,energy_file,k
+        real(8) radius, U
         !  output_file=12
         if(MOD(cur_step,output_interval_step)==0)then
 
@@ -410,216 +385,13 @@ contains
             write(output_file,*)'ITEM:BOX BOUNDS'
             write(output_file,'(2F7.1)')-radius,radius
             write(output_file,'(2F7.1)')-radius,radius
-            write(output_file,'(2F7.1)')-lz/2.0,lz/2.0
+            write(output_file,'(2F7.1)')-n_cell_z/2.0,n_cell_z/2.0
             write(output_file,*)'ITEM:ATOMS id type x y z'
             write(output_file,'(2I6,3F13.4)') k,1,x_b
             write(output_file,'(2I6,3F13.4)') k,2,x_p
             write(output_file,'(2I6,3F13.4)') k,3,x_s
             !write(13,'(3I6,3F13.4)') k,1,1,x1(k),y1(k),z1(k)
         endif
-=======
-        integer step
-        !        if(MOD(cur_step_pri,st1)==0)then
-        !
-        !            call tran(cur_step_pri+5,filename)
-        !            open(31,file=filename)
-        !            write(31,*) n_s+512+n_p
-        !            write(31,*)'cohar'
-        !
-        !            do i=1,n_p
-        !                write(31,'(a4,f17.7,f13.7,f13.7)')'p',r_p(i),y_p(i),z_p(i)
-        !            enddo
-        !
-        !            do i=1,512
-        !                write(31,'(a4,f17.7,f13.7,f13.7)')'o',x_bu(i),y_bu(i),z_bu(i)
-        !            enddo
-        !
-        !            do i=1,512
-        !                write(31,'(a4,f17.7,f13.7,f13.7)')'o',x_bd(i),y_bd(i),z_bd(i)
-        !            enddo
-        !            do i=1,n_s
-        !                write(31,'(a4,f17.7,f13.7,f13.7)') 'f',r_s(i),y_s(i),z_s(i)
-        !            end do
-        !            close(31)
-        !
-        !        endif
-        !
-        !        if(MOD(cur_step_pri,st11)==0)then
-        !            write(70,*) cur_step_pri,U1
-        !        endif
-    end subroutine
-
-    subroutine test()
-        implicit none
-        integer ix,iy,iz,k,count_p,count_s,i,j,n
-        real(8) momentum(3), matrix(3,3), aver_momentum(3),l(3),suml,fai,theta,y(3),ll(3,1), sumv2
-        real start,finish
-        real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
-        real(8) v(3,1)
-        fai=2.0*pi*rand(0)
-        theta=2.0*rand(0)-1
-        l(1)=cos(fai)*SQRT(1-theta**2)
-        l(2)=sin(fai)*SQRT(1-theta**2)
-        l(3)=theta
-        suml=sum(l)
-        n=100000000
-
-        !goto 3
-        call cpu_time(start)
-        do k=1,n
-            matrix(1,1) = l(1)*l(1)*(1-c) + c
-            matrix(1,2) = l(1)*l(2)*(1-c) - s*l(3)
-            matrix(1,3) = l(1)*l(3)*(1-c) + s*l(2)
-
-            matrix(2,1) = l(2)*l(1)*(1-c) + s*l(3)
-            matrix(2,2) = l(2)*l(2)*(1-c) + c
-            matrix(2,3) = l(2)*l(3)*(1-c) - s*l(1)
-
-            matrix(3,1) = l(3)*l(1)*(1-c) - s*l(2)
-            matrix(3,2) = l(3)*l(2)*(1-c) + s*l(1)
-            matrix(3,3) = l(3)*l(3)*(1-c) + c
-        enddo
-        call cpu_time(finish)
-        write(*,*) finish-start
-        write(*,'(3F8.3)') matrix
-
-        call cpu_time(start)
-        do k=1,n
-            matrix=0
-            do i=1,3
-                do j=1,3
-                    matrix(i,j)=l(i)*l(j)*(1-c)
-                    if (i/=j) then
-                        if (i<j) then
-                            matrix(i,j)=matrix(i,j)+(-1)**(i+j)*(suml-l(i)-l(j))*s
-                        else
-                            matrix(i,j)=matrix(i,j)-(-1)**(i+j)*(suml-l(i)-l(j))*s
-                        endif
-                    else
-                        matrix(i,j)=matrix(i,j)+c
-                    endif
-
-                enddo
-            enddo
-        enddo
-        call cpu_time(finish)
-        write(*,*) finish-start
-        write(*,'(3F8.3)') matrix
-
-        call cpu_time(start)
-        do k=1,n
-            matrix=0
-            do i=1,3
-                do j=1,3
-                    matrix(i,j)=l(i)*l(j)
-                    if (i/=j) then
-                        if (i<j) then
-                            matrix(i,j)=matrix(i,j)*(1-c)+(-1)**(i+j)*(suml-l(i)-l(j))*s
-                        else
-                            matrix(i,j)=matrix(i,j)*(1-c)-(-1)**(i+j)*(suml-l(i)-l(j))*s
-                        endif
-                    else
-                        matrix(i,j)=matrix(i,j)+(1-l(i)**2)*c
-                    endif
-
-                enddo
-            enddo
-        enddo
-        call cpu_time(finish)
-        write(*,*) finish-start
-        write(*,'(3F8.3)') matrix
-
-        ll(:,1)=l
-        call cpu_time(start)
-        do k=1,n
-            matrix=0
-            matrix(1,2)=-s*l(3)
-            matrix(1,3)=s*l(2)
-            matrix(2,3)=-s*l(1)
-            matrix=matrix-transpose(matrix)+matmul(ll,transpose(ll))*(1-c)
-            do i=1,3
-                matrix(i,i)=matrix(i,i)+c
-            enddo
-        enddo
-        call cpu_time(finish)
-        write(*,*) finish-start
-        write(*,'(3F8.3)') matrix
-
-        call cpu_time(start)
-        do k=1,n
-            matrix=0
-            matrix(1,2)=-s*l(3)
-            matrix(1,3)=s*l(2)
-            matrix(2,3)=-s*l(1)
-            matrix=matrix-transpose(matrix)
-            do i=1,3
-                matrix(i,i)=matrix(i,i)+c
-            enddo
-            !call dgemm('N','T',3,3,1,1-c,l,3,l,3,1.d0,matrix,3)
-        enddo
-        call cpu_time(finish)
-        write(*,*) finish-start
-        write(*,'(3F8.3)') matrix
-
-        call cpu_time(start)
-        do k=1,n
-            y=matmul(matrix,l)
-        enddo
-        call cpu_time(finish)
-        write(*,*) finish-start
-        write(*,'(3F8.3)') y
-
-        call cpu_time(start)
-        do k=1,n
-            !call dgemv('N',3,3,1d0,matrix,3,l,1,1d0,y,1)
-        enddo
-        call cpu_time(finish)
-        write(*,*) finish-start
-        write(*,'(3F8.3)') y
-
-        call cpu_time(start)
-        do k=1,n
-            y(1)=matrix(1,1)*l(1) + matrix(1,2)*l(2) + matrix(1,3)*l(3)
-            y(2)=matrix(2,1)*l(1) + matrix(2,2)*l(2) + matrix(2,3)*l(3)
-            y(3)=matrix(3,1)*l(1) + matrix(3,2)*l(2) + matrix(3,3)*l(3)
-        enddo
-        call cpu_time(finish)
-        write(*,*) finish-start
-        write(*,'(3F8.3)') y
-
-        call cpu_time(start)
-        do k=1,n
-            y(1)=sum(matrix(1,:)*l)
-            y(2)=sum(matrix(2,:)*l)
-            y(3)=sum(matrix(3,:)*l)
-        enddo
-        call cpu_time(finish)
-        write(*,*) finish-start
-        write(*,'(3F8.3)') y
-
-
-        3 call random_number(v)
-
-        call cpu_time(start)
-        sumv2=0
-        do k=1,n
-            sumv2=sumv2+sum(v**2)
-        enddo
-        call cpu_time(finish)
-        write(*,*) finish-start
-        write(*,*) sumv2
-
-        call cpu_time(start)
-        do k=1,n
-            !sumv2=0
-            do i=1,3;do j=1,1
-                sumv2=sumv2 + v(i,j)**2
-            enddo;enddo
-        enddo
-        call cpu_time(finish)
-        write(*,*) finish-start
-        write(*,*) sumv2
->>>>>>> 482efd2502fc0320cc8cd0e31ba72d73d341cef5
 
         if(MOD(cur_step,equilibrium_interval_step)==0)then
             write(energy_file,*) cur_step,U
@@ -634,18 +406,13 @@ program Poissonfield
     implicit none
     real(8) :: Ek, EK_scaled, T_Ek, T_scaled, density
     integer :: equili_step,equili_interval_step,total_step,output_interval_step,step,cur_step_per_rot, total_step_per_rot, &
-        cur_step_pri, total_step_pri, cur_step, total_step
+        cur_step_pri, total_step_pri, cur_step, total_rot_step
 
     integer i, ix, iy, iz, k, j
     real(8) randx, randz, ppx, ppz
 
     character(len=20) filename
 
-<<<<<<< HEAD
-=======
-    !call test()
->>>>>>> 482efd2502fc0320cc8cd0e31ba72d73d341cef5
-    call random_seed()
     equili_step=500000
     equili_interval_step=10000
     total_step=3000000
@@ -660,8 +427,6 @@ program Poissonfield
     half_box_size_unit=box_size_unit/2.0
 
     !!!d读链的大小 改成1个文件
-
-    call test_rand
 
     call init()
 
