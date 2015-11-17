@@ -37,6 +37,9 @@ contains
         implicit none
         integer i,j
         real(8) distance,x1(3),x2(3)
+
+        x1(3)=x1(3)-nint(x1(3)/n_cell_z)*n_cell_z
+        x2(3)=x2(3)-nint(x2(3)/n_cell_z)*n_cell_z
         distance=norm2(x1-x2)
         return
     endfunction
@@ -118,13 +121,14 @@ contains
 
                 ! 和壁保持距离
                 if(sqrt(x_p(1,i)**2+x_p(2,i)**2)>radius-1.0) then
+                    !write(0,*) x_p(:,i)
                     cycle
                 endif
 
                 ! 和除一级近邻外之前全部要保持一定距离
                 success = .true.
                 do k=1,i-2
-                    if(norm2(x_p(:,i)-x_p(:,k))<1.1)then
+                    if(distance(x_p(:,i),x_p(:,k))<1.1)then
                         success = .false.
                         exit
                     endif
@@ -136,11 +140,13 @@ contains
             enddo
 
             if (.not. success) then
-                x_p(1,i)=x_p(1,i)+0
-                x_p(2,i)=x_p(2,i)+0
-                x_p(3,i)=x_p(3,i)+1.0
+                x_p(1,i)=x_p(1,i-1)+0
+                x_p(2,i)=x_p(2,i-1)+0
+                x_p(3,i)=x_p(3,i-1)+1.0
             endif
         enddo
+
+        x_p(3,:)=x_p(3,:)-nint(x_p(3,:)/n_cell_z)*n_cell_z
 
         do i=1,n_p
             if (x_p(3,i)>n_cell_z/2d0.or.x_p(3,i)<-n_cell_z/2d0) then
@@ -171,6 +177,12 @@ contains
             enddo
         enddo
         write(*,*)"solvent单体数目：", n_s
+        close(output_file)
+    endsubroutine
+
+    subroutine periodic()
+        implicit none
+        x_p(3,:)=x_p(3,:)-nint(x_p(3,:)/n_cell_z)*n_cell_z
     endsubroutine
 
     subroutine FENE(f,U,rx)
