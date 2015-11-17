@@ -136,9 +136,9 @@ contains
             enddo
 
             if (.not. success) then
-                x_p(1,i)=x_p(1,i)+0
-                x_p(2,i)=x_p(2,i)+0
-                x_p(3,i)=x_p(3,i)+1.0
+                x_p(1,i)=x_p(1,i-1)+0
+                x_p(2,i)=x_p(2,i-1)+0
+                x_p(3,i)=x_p(3,i-1)+1.0
             endif
         enddo
 
