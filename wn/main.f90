@@ -51,13 +51,13 @@ contains
         logical success
         integer,parameter :: seed = 86456
 
-        radius=3
+        radius=4
         output_file=12
         open(output_file,file='dump.cylinder.lammpstrj')
         write(output_file,*)'ITEM:TIMESTEP'
         write(output_file,'(I9)')0
         write(output_file,*)'ITEM:NUMBER OF ATOMS'
-        write(output_file,'(I6)')40300
+        write(output_file,'(I6)')1220
 
         write(output_file,*)'ITEM:BOX BOUNDS'
         write(output_file,'(2F7.1)')-radius,radius
@@ -83,7 +83,7 @@ contains
             enddo
         enddo
 
-        write(*,*)"cylinder单体数目：", n_b
+        write(*,*)"Cylinder particle number: ", n_b
 
         !!!!!!!!!以下是polymer chain初值!!!!!!!!!!!!!!
         x_p(1,1)=0d0
@@ -121,7 +121,6 @@ contains
 
                 ! 和壁保持距离
                 if(sqrt(x_p(1,i)**2+x_p(2,i)**2)>radius-1.0) then
-                    !write(0,*) x_p(:,i)
                     cycle
                 endif
 
@@ -146,16 +145,13 @@ contains
             endif
         enddo
 
-        x_p(3,:)=x_p(3,:)-nint(x_p(3,:)/n_cell_z)*n_cell_z
+        call periodic()
 
         do i=1,n_p
-            if (x_p(3,i)>n_cell_z/2d0.or.x_p(3,i)<-n_cell_z/2d0) then
-                x_p(3,i)=x_p(3,i)-nint(x_p(3,i)/n_cell_z)*n_cell_z
-            endif
             write(output_file,'(2I6,3F13.4)') n_b+i,2,x_p(:,i)
         enddo
 
-        write(*,*)"polymer单体数目：", n_p
+        write(*,*)"Polymer monomer number: ", n_p
 
         !!!!!!!!!!!!!!!!以下是solution粒子的初值!!!!!!!!!!!!!!
 
@@ -168,7 +164,7 @@ contains
                     x_s(2,l)=(j-int(n_cell_y)/2d0)*box_size_unit
                     x_s(3,l)=(k-int(n_cell_z)/2d0)*box_size_unit
                     distant=sqrt(x_s(1,l)**2+x_s(2,l)**2)
-                    if(distant>=radius-1.0.or.x_s(3,l)>n_cell_z/2.0.or.x_s(3,l)<-n_cell_z/2.0)then
+                    if(distant>radius-1.0.or.x_s(3,l)>n_cell_z/2.0.or.x_s(3,l)<-n_cell_z/2.0)then
                     l=l-1
                     cycle
                 endif
@@ -176,7 +172,7 @@ contains
                 enddo
             enddo
         enddo
-        write(*,*)"solvent单体数目：", n_s
+        write(*,*)"Solvent particle number: ", n_s
         close(output_file)
     endsubroutine
 
