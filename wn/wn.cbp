@@ -35,7 +35,6 @@
 		</Compiler>
 		<Linker>
 			<Add option="-L." />
-			<Add option="-lblas" />
 		</Linker>
 		<Unit filename="main.f90">
 			<Option weight="0" />

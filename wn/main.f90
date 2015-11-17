@@ -230,7 +230,7 @@ contains
     end subroutine
 
     subroutine update_force(mode)
-        use parameters, only : x_p, f_p, n_p,f0_p
+        !use parameters, only : x_p, f_p, n_p,f0_p
         implicit none
         integer mode, i, j
         real(8) U, temp(3)
@@ -283,13 +283,13 @@ contains
     end function
 
     subroutine cal_collision_velocity()
-        use parameters
+        !use parameters
         implicit none
         integer ix,iy,iz,k,count_p,count_s,i
         real(8) momentum(3), matrix(3,3), l(3), fai, theta
         real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
         real(8) v_aver_p(3), v_aver_s(3), v_aver(3), temp(3)
-        logical mask_p(n_p), mask_p(n_s)
+        logical mask_p(n_p), mask_s(n_s)
         ! calculate velocity of all particles in each cell
         k=0
         do ix=0,n_cell_x-1
@@ -395,6 +395,7 @@ contains
 
     subroutine output(step)
         implicit none
+<<<<<<< HEAD
         integer cur_step,output_interval_step,equilibrium_interval_step,output_file,energy_file
         !  energy_file=11
         !  output_file=12
@@ -416,6 +417,209 @@ contains
             write(output_file,'(2I6,3F13.4)') k,3,x_s
             !write(13,'(3I6,3F13.4)') k,1,1,x1(k),y1(k),z1(k)
         endif
+=======
+        integer step
+        !        if(MOD(cur_step_pri,st1)==0)then
+        !
+        !            call tran(cur_step_pri+5,filename)
+        !            open(31,file=filename)
+        !            write(31,*) n_s+512+n_p
+        !            write(31,*)'cohar'
+        !
+        !            do i=1,n_p
+        !                write(31,'(a4,f17.7,f13.7,f13.7)')'p',r_p(i),y_p(i),z_p(i)
+        !            enddo
+        !
+        !            do i=1,512
+        !                write(31,'(a4,f17.7,f13.7,f13.7)')'o',x_bu(i),y_bu(i),z_bu(i)
+        !            enddo
+        !
+        !            do i=1,512
+        !                write(31,'(a4,f17.7,f13.7,f13.7)')'o',x_bd(i),y_bd(i),z_bd(i)
+        !            enddo
+        !            do i=1,n_s
+        !                write(31,'(a4,f17.7,f13.7,f13.7)') 'f',r_s(i),y_s(i),z_s(i)
+        !            end do
+        !            close(31)
+        !
+        !        endif
+        !
+        !        if(MOD(cur_step_pri,st11)==0)then
+        !            write(70,*) cur_step_pri,U1
+        !        endif
+    end subroutine
+
+    subroutine test()
+        implicit none
+        integer ix,iy,iz,k,count_p,count_s,i,j,n
+        real(8) momentum(3), matrix(3,3), aver_momentum(3),l(3),suml,fai,theta,y(3),ll(3,1), sumv2
+        real start,finish
+        real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
+        real(8) v(3,1)
+        fai=2.0*pi*rand(0)
+        theta=2.0*rand(0)-1
+        l(1)=cos(fai)*SQRT(1-theta**2)
+        l(2)=sin(fai)*SQRT(1-theta**2)
+        l(3)=theta
+        suml=sum(l)
+        n=100000000
+
+        !goto 3
+        call cpu_time(start)
+        do k=1,n
+            matrix(1,1) = l(1)*l(1)*(1-c) + c
+            matrix(1,2) = l(1)*l(2)*(1-c) - s*l(3)
+            matrix(1,3) = l(1)*l(3)*(1-c) + s*l(2)
+
+            matrix(2,1) = l(2)*l(1)*(1-c) + s*l(3)
+            matrix(2,2) = l(2)*l(2)*(1-c) + c
+            matrix(2,3) = l(2)*l(3)*(1-c) - s*l(1)
+
+            matrix(3,1) = l(3)*l(1)*(1-c) - s*l(2)
+            matrix(3,2) = l(3)*l(2)*(1-c) + s*l(1)
+            matrix(3,3) = l(3)*l(3)*(1-c) + c
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') matrix
+
+        call cpu_time(start)
+        do k=1,n
+            matrix=0
+            do i=1,3
+                do j=1,3
+                    matrix(i,j)=l(i)*l(j)*(1-c)
+                    if (i/=j) then
+                        if (i<j) then
+                            matrix(i,j)=matrix(i,j)+(-1)**(i+j)*(suml-l(i)-l(j))*s
+                        else
+                            matrix(i,j)=matrix(i,j)-(-1)**(i+j)*(suml-l(i)-l(j))*s
+                        endif
+                    else
+                        matrix(i,j)=matrix(i,j)+c
+                    endif
+
+                enddo
+            enddo
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') matrix
+
+        call cpu_time(start)
+        do k=1,n
+            matrix=0
+            do i=1,3
+                do j=1,3
+                    matrix(i,j)=l(i)*l(j)
+                    if (i/=j) then
+                        if (i<j) then
+                            matrix(i,j)=matrix(i,j)*(1-c)+(-1)**(i+j)*(suml-l(i)-l(j))*s
+                        else
+                            matrix(i,j)=matrix(i,j)*(1-c)-(-1)**(i+j)*(suml-l(i)-l(j))*s
+                        endif
+                    else
+                        matrix(i,j)=matrix(i,j)+(1-l(i)**2)*c
+                    endif
+
+                enddo
+            enddo
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') matrix
+
+        ll(:,1)=l
+        call cpu_time(start)
+        do k=1,n
+            matrix=0
+            matrix(1,2)=-s*l(3)
+            matrix(1,3)=s*l(2)
+            matrix(2,3)=-s*l(1)
+            matrix=matrix-transpose(matrix)+matmul(ll,transpose(ll))*(1-c)
+            do i=1,3
+                matrix(i,i)=matrix(i,i)+c
+            enddo
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') matrix
+
+        call cpu_time(start)
+        do k=1,n
+            matrix=0
+            matrix(1,2)=-s*l(3)
+            matrix(1,3)=s*l(2)
+            matrix(2,3)=-s*l(1)
+            matrix=matrix-transpose(matrix)
+            do i=1,3
+                matrix(i,i)=matrix(i,i)+c
+            enddo
+            !call dgemm('N','T',3,3,1,1-c,l,3,l,3,1.d0,matrix,3)
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') matrix
+
+        call cpu_time(start)
+        do k=1,n
+            y=matmul(matrix,l)
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') y
+
+        call cpu_time(start)
+        do k=1,n
+            !call dgemv('N',3,3,1d0,matrix,3,l,1,1d0,y,1)
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') y
+
+        call cpu_time(start)
+        do k=1,n
+            y(1)=matrix(1,1)*l(1) + matrix(1,2)*l(2) + matrix(1,3)*l(3)
+            y(2)=matrix(2,1)*l(1) + matrix(2,2)*l(2) + matrix(2,3)*l(3)
+            y(3)=matrix(3,1)*l(1) + matrix(3,2)*l(2) + matrix(3,3)*l(3)
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') y
+
+        call cpu_time(start)
+        do k=1,n
+            y(1)=sum(matrix(1,:)*l)
+            y(2)=sum(matrix(2,:)*l)
+            y(3)=sum(matrix(3,:)*l)
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,'(3F8.3)') y
+
+
+        3 call random_number(v)
+
+        call cpu_time(start)
+        sumv2=0
+        do k=1,n
+            sumv2=sumv2+sum(v**2)
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,*) sumv2
+
+        call cpu_time(start)
+        do k=1,n
+            !sumv2=0
+            do i=1,3;do j=1,1
+                sumv2=sumv2 + v(i,j)**2
+            enddo;enddo
+        enddo
+        call cpu_time(finish)
+        write(*,*) finish-start
+        write(*,*) sumv2
+>>>>>>> 482efd2502fc0320cc8cd0e31ba72d73d341cef5
 
         if(MOD(cur_step,equilibrium_interval_step)==0)then
             write(energy_file,*) cur_step,U
@@ -437,6 +641,10 @@ program Poissonfield
 
     character(len=20) filename
 
+<<<<<<< HEAD
+=======
+    !call test()
+>>>>>>> 482efd2502fc0320cc8cd0e31ba72d73d341cef5
     call random_seed()
     equili_step=500000
     equili_interval_step=10000
@@ -502,7 +710,7 @@ program Poissonfield
     write(*,*) '初始标度后动能kin2=',Ek_scaled
     write(*,*) '初始标度后温度tmp=',T_set
 
-    call cal_average_momentum()
+    call cal_collision_velocity()
 
     ! 预处理
     !!! compute a(t-dt)
@@ -601,7 +809,7 @@ program Poissonfield
                 !    write(100,*)cur_step,j
                 !endif
 
-                call cal_average_momentum()
+                call cal_collision_velocity()
 
                 call scale_v(v_p,n_p,mass_p,Ek,T_set,T_scaled)
                 call scale_v(v_s,n_s,mass_s,Ek,T_set,T_scaled)
@@ -632,4 +840,4 @@ program Poissonfield
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-end program translocation
+end program Poissonfield
