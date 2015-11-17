@@ -59,7 +59,7 @@ contains
         write(output_file,*)'ITEM:BOX BOUNDS'
         write(output_file,'(2F7.1)')-radius,radius
         write(output_file,'(2F7.1)')-radius,radius
-        write(output_file,'(2F7.1)')-n_cell_z/2,n_cell_z/2.0
+        write(output_file,'(2F7.1)')-n_cell_z/2d0,n_cell_z/2d0
         write(output_file,*)'ITEM:ATOMS id type x y z'
 
         !!!!!!!!!以下是cylinder channel初值!!!!!!!!!!!!!!
@@ -69,14 +69,14 @@ contains
             do i=0,2*k-1
                 n_b=n_b+1
                 if(mod(j,2)==0)then
-                    x_b(1,n_b)=radius*cos(dble(i)*pi/dble(k))
-                    x_b(2,n_b)=radius*sin(dble(i)*pi/dble(k))
+                    x_b(1,n_b)=radius*cos(i*pi/k)
+                    x_b(2,n_b)=radius*sin(i*pi/k)
                 else
-                    x_b(1,n_b)=radius*cos(dble(i)*pi/dble(k)+pi/dble(2*k))
-                    x_b(2,n_b)=radius*sin(dble(i)*pi/dble(k)+pi/dble(2*k))
+                    x_b(1,n_b)=radius*cos(i*pi/k+pi/(2d0*k))
+                    x_b(2,n_b)=radius*sin(i*pi/k+pi/(2d0*k))
                 endif
-                x_b(3,n_b)=dble(j-n_cell_z)*0.5
-                write(output_file,'(2I6,3F13.4)') k,1,x_b(:,n_b)
+                x_b(3,n_b)=(j-n_cell_z)*0.5
+                write(output_file,'(2I6,3F13.4)') n_b,1,x_b(:,n_b)
             enddo
         enddo
 
@@ -146,7 +146,7 @@ contains
             if (x_p(3,i)>n_cell_z/2d0.or.x_p(3,i)<-n_cell_z/2d0) then
                 x_p(3,i)=x_p(3,i)-nint(x_p(3,i)/n_cell_z)*n_cell_z
             endif
-            write(output_file,'(2I6,3F13.4)') i,2,x_p(:,i)
+            write(output_file,'(2I6,3F13.4)') n_b+i,2,x_p(:,i)
         enddo
 
         write(*,*)"polymer单体数目：", n_p
@@ -158,10 +158,10 @@ contains
             do j=0,int(n_cell_y)
                 do k=0,int(n_cell_z)
                     l=l+1
-                    x_s(1,l)=dble(i-int(n_cell_x)/2)*box_size_unit
-                    x_s(2,l)=dble(j-int(n_cell_y)/2)*box_size_unit
-                    x_s(3,l)=dble(k-int(n_cell_z)/2)*box_size_unit
-                    write(output_file,'(2I6,3F13.4)') i,3,x_s(:,l)
+                    x_s(1,l)=(i-int(n_cell_x)/2d0)*box_size_unit
+                    x_s(2,l)=(j-int(n_cell_y)/2d0)*box_size_unit
+                    x_s(3,l)=(k-int(n_cell_z)/2d0)*box_size_unit
+                    write(output_file,'(2I6,3F13.4)') n_b+n_p+l,3,x_s(:,l)
                 enddo
             enddo
         enddo
