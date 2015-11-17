@@ -161,6 +161,11 @@ contains
                     x_s(1,l)=(i-int(n_cell_x)/2d0)*box_size_unit
                     x_s(2,l)=(j-int(n_cell_y)/2d0)*box_size_unit
                     x_s(3,l)=(k-int(n_cell_z)/2d0)*box_size_unit
+                    distant=sqrt(x_s(1,l)**2+x_s(2,l)**2)
+                    if(distant>=radius-1.0.or.x_s(3,l)>n_cell_z/2.0.or.x_s(3,l)<-n_cell_z/2.0)then
+                    l=l-1
+                    cycle
+                endif
                     write(output_file,'(2I6,3F13.4)') n_b+n_p+l,3,x_s(:,l)
                 enddo
             enddo
