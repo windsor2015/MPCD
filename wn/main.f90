@@ -5,9 +5,9 @@ module parameters
     ! 下标约定: p - polymer, s - solution, b - boundary
 
     !结构
-    integer, parameter :: n_p=40, n_cell_x=5, n_cell_y=5, n_cell_z=15, n_s=n_cell_x*n_cell_y*n_cell_z
+    integer, parameter :: n_p=40, n_cell_x=5, n_cell_y=5, n_cell_z=15
 
-    integer n_b
+    integer n_b, n_s
 
     !n是单体数目，n0是单体、壁、孔数目之和
 
@@ -19,17 +19,17 @@ module parameters
     ! polymer 位置 速度 力 上一次力
     real(8), dimension(3,n_p) :: x_p, v_p, f_p, f0_p
     ! solution
-    real(8), dimension(3,n_s) :: x_s, v_s, f_s, x0_s
+    real(8), dimension(3,2000) :: x_s, v_s, f_s, x0_s
     ! boundaaries, 1~nb-up, nb+1~2nb-down
     real(8), dimension(3,2*10000) :: x_b, v_b, f_b
 
     real(8) box_size_unit, half_box_size_unit, box_size(3), half_box_size(3)
 
-    real(8) randnum_group(3,n_s)
+    real(8) randnum_group(3,2000)
 
     real(8) aver_v(3), distant
 
-    real(8), parameter::sigma=1, epson=1
+    real(8), parameter::sigma=1, epson=1, radius=4
 
 contains
 
@@ -47,23 +47,9 @@ contains
     subroutine init()
         implicit none
         integer i,j,k,l,h,count_number,dx(2,4),output_file
-        real(8) radius,lz,distant
+        real(8) lz,distant
         logical success
         integer,parameter :: seed = 86456
-
-        radius=4
-        output_file=12
-        open(output_file,file='dump.cylinder.lammpstrj')
-        write(output_file,*)'ITEM:TIMESTEP'
-        write(output_file,'(I9)')0
-        write(output_file,*)'ITEM:NUMBER OF ATOMS'
-        write(output_file,'(I6)')1220
-
-        write(output_file,*)'ITEM:BOX BOUNDS'
-        write(output_file,'(2F7.1)')-radius,radius
-        write(output_file,'(2F7.1)')-radius,radius
-        write(output_file,'(2F7.1)')-n_cell_z/2d0,n_cell_z/2d0
-        write(output_file,*)'ITEM:ATOMS id type x y z'
 
         !!!!!!!!!以下是cylinder channel初值!!!!!!!!!!!!!!
         n_b=0
@@ -79,7 +65,7 @@ contains
                     x_b(2,n_b)=radius*sin(i*pi/k+pi/(2d0*k))
                 endif
                 x_b(3,n_b)=(j-n_cell_z)*0.5
-                write(output_file,'(2I6,3F13.4)') n_b,1,x_b(:,n_b)
+                ! write(output_file,'(2I6,3F13.4)') n_b,1,x_b(:,n_b)
             enddo
         enddo
 
@@ -88,7 +74,7 @@ contains
         !!!!!!!!!以下是polymer chain初值!!!!!!!!!!!!!!
         x_p(1,1)=0d0
         x_p(2,1)=0d0
-        x_p(3,1)=-5d0
+        x_p(3,1)=0d0
 
         dx(1,1)=0
         dx(2,1)=1d0
@@ -145,40 +131,66 @@ contains
             endif
         enddo
 
-        call periodic()
+        call periodic_p()
 
-        do i=1,n_p
-            write(output_file,'(2I6,3F13.4)') n_b+i,2,x_p(:,i)
-        enddo
+        !        do i=1,n_p
+        !            write(output_file,'(2I6,3F13.4)') n_b+i,2,x_p(:,i)
+        !        enddo
 
         write(*,*)"Polymer monomer number: ", n_p
 
         !!!!!!!!!!!!!!!!以下是solution粒子的初值!!!!!!!!!!!!!!
 
-        l=0
+        n_s=0
         do i=0,int(n_cell_x)
             do j=0,int(n_cell_y)
                 do k=0,int(n_cell_z)
-                    l=l+1
-                    x_s(1,l)=(i-int(n_cell_x)/2d0)*box_size_unit
-                    x_s(2,l)=(j-int(n_cell_y)/2d0)*box_size_unit
-                    x_s(3,l)=(k-int(n_cell_z)/2d0)*box_size_unit
-                    distant=sqrt(x_s(1,l)**2+x_s(2,l)**2)
-                    if(distant>radius-1.0.or.x_s(3,l)>n_cell_z/2.0.or.x_s(3,l)<-n_cell_z/2.0)then
-                    l=l-1
-                    cycle
-                endif
-                    write(output_file,'(2I6,3F13.4)') n_b+n_p+l,3,x_s(:,l)
+                    x_s(1,n_s)=(i-int(n_cell_x)/2d0)*box_size_unit
+                    x_s(2,n_s)=(j-int(n_cell_y)/2d0)*box_size_unit
+                    x_s(3,n_s)=(k-int(n_cell_z)/2d0)*box_size_unit
+                    distant=sqrt(x_s(1,n_s)**2+x_s(2,n_s)**2)
+                    if(distant>radius-1.0.or.x_s(3,n_s)>n_cell_z/2.0.or.x_s(3,n_s)<-n_cell_z/2.0)then
+                        cycle
+                    endif
+                    n_s=n_s+1
+                    !write(output_file,'(2I6,3F13.4)') n_b+n_p+n_s,3,x_s(:,n_s)
                 enddo
             enddo
         enddo
         write(*,*)"Solvent particle number: ", n_s
-        close(output_file)
+        write(*,*)"Total particle number: ", n_b+n_p+n_s
+        ! call output_()
     endsubroutine
 
-    subroutine periodic()
+    SUBROUTINE connect_z()
+        INTEGER f,i,j
+        REAL(8) distant_z,distant_max
+        PARAMETER(distant_max=7)
+
+        DO i=2,n_p
+            distant_z=x_p(3,i)-x_p(3,i-1)
+            IF(abs(distant_z)>distant_max)THEN
+                IF(distant_z>0)THEN
+                    f=-1
+                ELSE
+                    f=1
+                ENDIF
+                DO j=i,n_p
+                    x_p(3,j)=x_p(3,j)+n_cell_z*f
+                ENDDO
+            ENDIF
+        ENDDO
+        RETURN
+    END SUBROUTINE
+
+    subroutine periodic_p()
         implicit none
         x_p(3,:)=x_p(3,:)-nint(x_p(3,:)/n_cell_z)*n_cell_z
+    endsubroutine
+
+    subroutine periodic_s()
+        implicit none
+        x_s(3,:)=x_s(3,:)-nint(x_s(3,:)/n_cell_z)*n_cell_z
     endsubroutine
 
     subroutine FENE(f,U,rx)
@@ -219,11 +231,11 @@ contains
     end subroutine
 
     subroutine update_force(mode)
-    !    use parameters, only : x_p, f_p, n_p,f0_p
+        !    use parameters, only : x_p, f_p, n_p,f0_p
         implicit none
         integer mode, i, j
         real(8) U, temp(3)
-
+        call connect_z()
         f_p=0
         U=0
         temp=0
@@ -258,6 +270,8 @@ contains
             f0_p=f_p
         endif
 
+        call periodic_p()
+
     end subroutine
 
     logical function inbox(x,ix,iy,iz)
@@ -272,7 +286,7 @@ contains
     end function
 
     subroutine cal_collision_velocity()
-    !    use parameters
+        !    use parameters
         implicit none
         integer ix,iy,iz,k,count_p,count_s,i
         real(8) momentum(3), matrix(3,3), l(3), fai, theta
@@ -378,37 +392,42 @@ contains
         v=v*scalar
         Ek=0.5*mass*sum(v**2)
         T_out=Ek1/(Ek_fac*n)
-        write(*,*) '初始标度后动能Ek=',Ek
-        write(*,*) '初始标度后温度T_out=',T_out
+        !  write(*,*) 'Initial scaled kinetics Ek=',Ek
+        ! write(*,*) 'Initial scaled temperature T_out=',T_out
     end subroutine
 
-    subroutine output(step)
+    subroutine output(output_file)
         implicit none
         integer cur_step,step,output_interval_step,equilibrium_interval_step,output_file,energy_file,k
-        real(8) radius, U
-        !  output_file=12
-        if(MOD(cur_step,output_interval_step)==0)then
+       ! real(8) radius
+        write(output_file,*)'ITEM:TIMESTEP'
+        write(output_file,'(I9)')cur_step
+        write(output_file,*)'ITEM:NUMBER OF ATOMS'
+        write(output_file,'(I6)')n_b+n_p+n_s
 
-            !   open(output_file,file='dump.CNT.lammpstrj')
-            write(output_file,*)'ITEM:TIMESTEP'
-            write(output_file,'(I9)')cur_step
-            write(output_file,*)'ITEM:NUMBER OF ATOMS'
-            write(output_file,'(I6)')n_b+n_p+n_s
+        write(output_file,*)'ITEM:BOX BOUNDS'
+        write(output_file,'(2F7.1)')-radius,radius
+        write(output_file,'(2F7.1)')-radius,radius
+        write(output_file,'(2F7.1)')-n_cell_z/2.0,n_cell_z/2.0
+        write(output_file,*)'ITEM:ATOMS id type x y z'
+        do k=1,n_b
+            write(output_file,'(2I6,3F13.4)') k,1,x_b(:,k)
+        enddo
+        do k=1,n_p
+            write(output_file,'(2I6,3F13.4)') n_b+k,2,x_p(:,k)
+        enddo
+        do k=1,n_s
+            write(output_file,'(2I6,3F13.4)') n_b+n_p+k,3,x_s(:,k)
+        enddo
 
-            write(output_file,*)'ITEM:BOX BOUNDS'
-            write(output_file,'(2F7.1)')-radius,radius
-            write(output_file,'(2F7.1)')-radius,radius
-            write(output_file,'(2F7.1)')-n_cell_z/2.0,n_cell_z/2.0
-            write(output_file,*)'ITEM:ATOMS id type x y z'
-            write(output_file,'(2I6,3F13.4)') k,1,x_b
-            write(output_file,'(2I6,3F13.4)') k,2,x_p
-            write(output_file,'(2I6,3F13.4)') k,3,x_s
-            !write(13,'(3I6,3F13.4)') k,1,1,x1(k),y1(k),z1(k)
-        endif
+    end subroutine
 
-        if(MOD(cur_step,equilibrium_interval_step)==0)then
-            write(energy_file,*) cur_step,U
-        endif
+    subroutine output_U()
+        implicit none
+        integer cur_step, energy_file
+        real(8) U
+        energy_file=13
+        write(energy_file,*) cur_step,U
     end subroutine
 
 end module
@@ -419,12 +438,14 @@ program Poissonfield
     implicit none
     real(8) :: Ek, EK_scaled, T_Ek, T_scaled, density
     integer :: equili_step,equili_interval_step,total_step,output_interval_step,step,cur_step_per_rot, total_step_per_rot, &
-        cur_step_pri, total_step_pri, cur_step, total_rot_step
+        cur_step_pri, total_step_pri, cur_step, total_rot_step,output_file
 
     integer i, ix, iy, iz, k, j
     real(8) randx, randz, ppx, ppz
 
     character(len=20) filename
+
+    output_file=12
 
     equili_step=500000
     equili_interval_step=10000
@@ -440,8 +461,9 @@ program Poissonfield
     half_box_size_unit=box_size_unit/2.0
 
     !!!d读链的大小 改成1个文件
-
+    open(output_file,file='dump.cylinder.lammpstrj')
     call init()
+    call output(output_file)
 
     call random_number(randnum_group)
     x_s = x_s + (randnum_group-0.5)*box_size_unit
@@ -494,7 +516,7 @@ program Poissonfield
     !!! compute a(t-dt)
     call update_force(0)
 
-    do cur_step_pri=1,total_step_pri
+    do cur_step=1,total_step
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
         !!!!!! compute a(t+dt)
         call update_force(1)
@@ -529,7 +551,7 @@ program Poissonfield
             v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
             call scale_v(v_p,n_p,mass_p,Ek,T_set,T_scaled)
             f0_p=f_p
-            call output(cur_step_pri)
+            !   call output(cur_step_pri)
 
         enddo        !!!!st3
 
