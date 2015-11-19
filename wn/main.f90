@@ -19,13 +19,11 @@ module parameters
     ! polymer 位置 速度 力 上一次力
     real(8), dimension(3,n_p) :: x_p, v_p, f_p, f0_p
     ! solution
-    real(8), dimension(3,2000) :: x_s, v_s, f_s, x0_s
+    real(8), allocatable, dimension(:,:) :: x_s, v_s, f_s, x0_s
     ! boundaaries, 1~nb-up, nb+1~2nb-down
-    real(8), dimension(3,2*10000) :: x_b, v_b, f_b
+    real(8), allocatable, dimension(:,:) :: x_b, v_b, f_b
 
     real(8) box_size_unit, half_box_size_unit, box_size(3), half_box_size(3)
-
-    real(8) randnum_group(3,2000)
 
     real(8) aver_v(3), distant
 
@@ -35,7 +33,6 @@ contains
 
     function distance(x1,x2)
         implicit none
-        integer i,j
         real(8) distance,x1(3),x2(3)
 
         x1(3)=x1(3)-nint(x1(3)/n_cell_z)*n_cell_z
@@ -46,8 +43,8 @@ contains
 
     subroutine init()
         implicit none
-        integer i,j,k,l,h,count_number,dx(2,4),output_file
-        real(8) lz,distant
+        integer i,j,k,h,count_number
+        real(8) distant,dx(2,4), temp(3,10000)
         logical success
         integer,parameter :: seed = 86456
 
@@ -58,23 +55,24 @@ contains
             do i=0,2*k-1
                 n_b=n_b+1
                 if(mod(j,2)==0)then
-                    x_b(1,n_b)=radius*cos(i*pi/k)
-                    x_b(2,n_b)=radius*sin(i*pi/k)
+                    temp(1,n_b)=radius*cos(i*pi/k)
+                    temp(2,n_b)=radius*sin(i*pi/k)
                 else
-                    x_b(1,n_b)=radius*cos(i*pi/k+pi/(2d0*k))
-                    x_b(2,n_b)=radius*sin(i*pi/k+pi/(2d0*k))
+                    temp(1,n_b)=radius*cos(i*pi/k+pi/(2d0*k))
+                    temp(2,n_b)=radius*sin(i*pi/k+pi/(2d0*k))
                 endif
-                x_b(3,n_b)=(j-n_cell_z)*0.5
+                temp(3,n_b)=(j-n_cell_z)*0.5
                 ! write(output_file,'(2I6,3F13.4)') n_b,1,x_b(:,n_b)
             enddo
         enddo
-
+        allocate(x_b(3,n_b),v_b(3,n_b),f_b(3,n_b))
+        x_b=temp(:,1:n_b)
         write(*,*)"Cylinder particle number: ", n_b
 
         !!!!!!!!!以下是polymer chain初值!!!!!!!!!!!!!!
         x_p(1,1)=0d0
         x_p(2,1)=0d0
-        x_p(3,1)=0d0
+        x_p(3,1)=-5d0
 
         dx(1,1)=0
         dx(2,1)=1d0
@@ -133,33 +131,33 @@ contains
 
         call periodic_p()
 
-        !        do i=1,n_p
-        !            write(output_file,'(2I6,3F13.4)') n_b+i,2,x_p(:,i)
-        !        enddo
-
         write(*,*)"Polymer monomer number: ", n_p
 
         !!!!!!!!!!!!!!!!以下是solution粒子的初值!!!!!!!!!!!!!!
 
         n_s=0
-        do i=0,int(n_cell_x)
-            do j=0,int(n_cell_y)
-                do k=0,int(n_cell_z)
-                    x_s(1,n_s)=(i-int(n_cell_x)/2d0)*box_size_unit
-                    x_s(2,n_s)=(j-int(n_cell_y)/2d0)*box_size_unit
-                    x_s(3,n_s)=(k-int(n_cell_z)/2d0)*box_size_unit
-                    distant=sqrt(x_s(1,n_s)**2+x_s(2,n_s)**2)
-                    if(distant>radius-1.0.or.x_s(3,n_s)>n_cell_z/2.0.or.x_s(3,n_s)<-n_cell_z/2.0)then
+        do i=0,n_cell_x
+            do j=0,n_cell_y
+                do k=0,n_cell_z
+                    n_s=n_s+1
+                    temp(1,n_s)=(i-n_cell_x/2d0)*box_size_unit
+                    temp(2,n_s)=(j-n_cell_y/2d0)*box_size_unit
+                    temp(3,n_s)=(k-n_cell_z/2d0)*box_size_unit
+                    distant=sqrt(temp(1,n_s)**2+temp(2,n_s)**2)
+                    if(distant>radius-1.0 .or. temp(3,n_s)>n_cell_z/2.0 .or. temp(3,n_s)<-n_cell_z/2.0)then
+                        n_s=n_s-1
                         cycle
                     endif
-                    n_s=n_s+1
+
                     !write(output_file,'(2I6,3F13.4)') n_b+n_p+n_s,3,x_s(:,n_s)
                 enddo
             enddo
         enddo
+        allocate(x_s(3,n_s),v_s(3,n_s), f_s(3,n_s), x0_s(3,n_s))
+        x_s=temp(:,1:n_s)
         write(*,*)"Solvent particle number: ", n_s
         write(*,*)"Total particle number: ", n_b+n_p+n_s
-        ! call output_()
+
     endsubroutine
 
     SUBROUTINE connect_z()
@@ -376,35 +374,38 @@ contains
     end subroutine
 
     !!!!以下是Isokinetics thermostat，可以试一下Berendsen thermostat
-    subroutine scale_v(v,n,mass,Ek,T,T_out)
+    subroutine scale_v(Ek,T,T_out)
         implicit none
-        integer n, i
+        integer i
         real(8), parameter :: Ek_fac = 1.5d0
-        real(8) v(3,n), mass, Ek,T, scalar, Ek1, T_out, T1
+        real(8) v, Ek,T, scalar, Ek1, T_out, T1
+
 
         do i=1,3
-            v(i,:) = v(i,:)-sum(v(i,:))/n
+            v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
+            v_p(i,:) = v_p(i,:)-v
+            v_s(i,:) = v_s(i,:)-v
         enddo
 
-        Ek1=0.5*mass*sum(v**2)
-        T1=Ek1/(Ek_fac*n)
+        Ek1=0.5*(mass_p*sum(v_p**2)+mass_s*sum(v_s**2))
+        T1=Ek1/(Ek_fac*(n_p+n_s))
         scalar=sqrt(T/T1)
-        v=v*scalar
-        Ek=0.5*mass*sum(v**2)
-        T_out=Ek1/(Ek_fac*n)
-        !  write(*,*) 'Initial scaled kinetics Ek=',Ek
-        ! write(*,*) 'Initial scaled temperature T_out=',T_out
+        v_p=v_p*scalar
+        v_s=v_s*scalar
+        Ek=0.5*(mass_p*sum(v_p**2)+mass_s*sum(v_s**2))
+        T_out=Ek/(Ek_fac*(n_p+n_s))
+
     end subroutine
 
-    subroutine output(output_file)
+    subroutine output(output_file,cur_step,step)
         implicit none
-        integer cur_step,step,output_interval_step,equilibrium_interval_step,output_file,energy_file,k
-       ! real(8) radius
+        integer cur_step,step,output_file,k
+
+        if(mod(cur_step,step)==0)then
         write(output_file,*)'ITEM:TIMESTEP'
         write(output_file,'(I9)')cur_step
         write(output_file,*)'ITEM:NUMBER OF ATOMS'
         write(output_file,'(I6)')n_b+n_p+n_s
-
         write(output_file,*)'ITEM:BOX BOUNDS'
         write(output_file,'(2F7.1)')-radius,radius
         write(output_file,'(2F7.1)')-radius,radius
@@ -419,15 +420,18 @@ contains
         do k=1,n_s
             write(output_file,'(2I6,3F13.4)') n_b+n_p+k,3,x_s(:,k)
         enddo
+        endif
 
     end subroutine
 
-    subroutine output_U()
+    subroutine output_U(energy_file,cur_step,step)
         implicit none
-        integer cur_step, energy_file
+        integer cur_step, step, energy_file
         real(8) U
         energy_file=13
+        if(mod(cur_step,step)==0)then
         write(energy_file,*) cur_step,U
+        endif
     end subroutine
 
 end module
@@ -436,95 +440,79 @@ end module
 program Poissonfield
     use parameters
     implicit none
-    real(8) :: Ek, EK_scaled, T_Ek, T_scaled, density
-    integer :: equili_step,equili_interval_step,total_step,output_interval_step,step,cur_step_per_rot,total_step_per_rot, &
-        cur_step_pri, total_step_pri,cur_step,total_rot_step,output_file
+    real(8) :: Ek, EK_scaled, T_scaled, density
+    integer :: equili_step,equili_interval_step,total_step,output_interval_step,cur_step_per_rot,total_step_per_rot, &
+        cur_step,total_rot_step,output_file
 
-    integer i, ix, iy, iz, k, j
+    real(8), allocatable :: randnum_group(:,:)
+
+    integer i, j
     real(8) randx, randz, ppx, ppz
-
-    character(len=20) filename
 
     output_file=12
 
     equili_step=500000
-    equili_interval_step=10000
+    equili_interval_step=1000
     total_step=3000000
     output_interval_step=10000
     total_rot_step=500000
     total_step_per_rot=200
 
     box_size = [n_cell_x, n_cell_y, n_cell_z]
-    half_box_size = box_size/2
+    half_box_size(3) = n_cell_z/2d0
     density=0.85
-    box_size_unit=(1.0/density)**(1d0/3)
-    half_box_size_unit=box_size_unit/2.0
+    box_size_unit=(1/density)**(1d0/3)
+    half_box_size_unit=box_size_unit/2
 
     !!!读链的大小 改成1个文件
     open(output_file,file='dump.cylinder.lammpstrj')
     call init()
-    call output(output_file)
+    call output(output_file,0,equili_interval_step)
 
-    call random_number(randnum_group)
-    x_s = x_s + (randnum_group-0.5)*box_size_unit
-    do i=1,n_s
-        x_s(:,k) = x_s(:,k) - box_size*nint((x_s(:,k)-half_box_size)/box_size)
-    enddo
+!    allocate(randnum_group(3,n_s))
+!    call random_number(randnum_group)
+!    x_s(:,:) = x_s(:,:) + (randnum_group(:,:)-0.5)*box_size_unit
+!    deallocate(randnum_group)
 
+!    do i=1,n_s
+!        x_s(3,i) = x_s(3,i) - box_size(3)*nint((x_s(3,i)-half_box_size(3))/box_size(3))
+!    enddo
 
-    open(70,file='qu0.out')
-    open(80,file='qu.out')
-    open(81,file='pcc.out')
-    open(821,file='gxy.out')
-    open(82,file='gzr.out')
-    open(83,file='masscenter.out')
-    open(84,file='yta.out')
-    open(88,file='numy.out')
-    open(90,file='r22.out')
-    open(91,file='sf.out')
-    open(100,file='vxyz1.out')
-    open(110,file='pt.out')
-    open(111,file='cc.out')
-    open(200,file='vxyz0.out')
-    open(210,file='xyz.out')
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-    !!!assign initial velocity
-    !!!链的初速度
-
+     !!!polymer的初速度
     call random_number(v_p)
-    v_p=v_p-0.5
-
-    call scale_v(v_p, n_p, mass_p, Ek_scaled, T_set, T_scaled)
-
-    write(*,*) '初始标度后动能kin2=',Ek_scaled
-    write(*,*) '初始标度后温度tmp=',T_set
-
-    !!!溶剂的初速度
+    !!!solution的初速度
     call random_number(v_s)
+    v_p=v_p-0.5
     v_s=v_s-0.5
+    call scale_v(Ek_scaled, T_set, T_scaled)
+        write(*,*) 'Polymer: '
+        write(*,*) 'Initial scaled kinetics Ek_scaled: ',Ek_scaled
+        write(*,*) 'Initial setted temperature T_set: ',T_set
+        write(*,*) 'Initial scaled temperature T_scaled: ',T_scaled
 
-    call scale_v(v_s, n_s, mass_s, Ek_scaled, T_set, T_scaled)
+        write(*,*) 'Solution: '
+        write(*,*) 'Initial scaled kinetics Ek_scaled=',Ek_scaled
+        write(*,*) 'Initial setted temperature T_set=',T_set
+        write(*,*) 'Initial scaled temperature T_scaled=',T_scaled
 
-    write(*,*) '初始标度后动能kin2=',Ek_scaled
-    write(*,*) '初始标度后温度tmp=',T_set
+    ! 没有外场时，polymer和solution达到平衡
+        call update_force(0)
 
-    call cal_collision_velocity()
-
-    ! 预处理
-    !!! compute a(t-dt)
-    call update_force(0)
-
-    do cur_step=1,total_step
+    do cur_step=1,equili_step
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
-        !!!!!! compute a(t+dt)
+        x_s = x_s + v_s*time_step_s
         call update_force(1)
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
-        call scale_v(v_p,n_p,mass_p,Ek,T_set,T_scaled)
+        call cal_collision_velocity
+        call scale_v(Ek,T_set,T_scaled)
         f0_p=f_p
-        !call output(cur_step_pri)
+        call output(output_file,cur_step,equili_interval_step)
+        if(mod(cur_step,10000)==0)then
+            write(*,*)v_s
+        endif
     enddo
+
+    call cal_collision_velocity()
 
     write(*,*)'循环开始'
     !!! compute a(t-dt)
@@ -549,7 +537,7 @@ program Poissonfield
             call update_force(1)
 
             v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
-            call scale_v(v_p,n_p,mass_p,Ek,T_set,T_scaled)
+            call scale_v(Ek,T_set,T_scaled)
             f0_p=f_p
             !   call output(cur_step_pri)
 
@@ -611,8 +599,7 @@ program Poissonfield
 
                 call cal_collision_velocity()
 
-                call scale_v(v_p,n_p,mass_p,Ek,T_set,T_scaled)
-                call scale_v(v_s,n_s,mass_s,Ek,T_set,T_scaled)
+                call scale_v(Ek,T_set,T_scaled)
 
             endif
 
