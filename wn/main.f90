@@ -444,7 +444,7 @@ program Poissonfield
     integer :: equili_step,equili_interval_step,total_step,output_interval_step,cur_step_per_rot,total_step_per_rot, &
         cur_step,total_rot_step,output_file
 
-    real(8), allocatable :: randnum_group(:,:)
+   ! real(8), allocatable :: randnum_group(:,:)
 
     integer i, j
     real(8) randx, randz, ppx, ppz
@@ -499,16 +499,19 @@ program Poissonfield
         call update_force(0)
 
     do cur_step=1,equili_step
+                if(mod(cur_step,10000)==0)then
+            write(*,*)v_s(:,1)
+        endif
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
         x_s = x_s + v_s*time_step_s
         call update_force(1)
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
-        call cal_collision_velocity
+        call cal_collision_velocity()
         call scale_v(Ek,T_set,T_scaled)
         f0_p=f_p
         call output(output_file,cur_step,equili_interval_step)
         if(mod(cur_step,10000)==0)then
-            write(*,*)v_s
+            write(*,*)v_s(:,1)
         endif
     enddo
 
