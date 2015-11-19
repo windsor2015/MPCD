@@ -437,8 +437,8 @@ program Poissonfield
     use parameters
     implicit none
     real(8) :: Ek, EK_scaled, T_Ek, T_scaled, density
-    integer :: equili_step,equili_interval_step,total_step,output_interval_step,step,cur_step_per_rot, total_step_per_rot, &
-        cur_step_pri, total_step_pri, cur_step, total_rot_step,output_file
+    integer :: equili_step,equili_interval_step,total_step,output_interval_step,step,cur_step_per_rot,total_step_per_rot, &
+        cur_step_pri, total_step_pri,cur_step,total_rot_step,output_file
 
     integer i, ix, iy, iz, k, j
     real(8) randx, randz, ppx, ppz
@@ -457,10 +457,10 @@ program Poissonfield
     box_size = [n_cell_x, n_cell_y, n_cell_z]
     half_box_size = box_size/2
     density=0.85
-    box_size_unit=(n_s/density)**(1d0/3)/n_cell_x
+    box_size_unit=(1.0/density)**(1d0/3)
     half_box_size_unit=box_size_unit/2.0
 
-    !!!d读链的大小 改成1个文件
+    !!!读链的大小 改成1个文件
     open(output_file,file='dump.cylinder.lammpstrj')
     call init()
     call output(output_file)
