@@ -14,7 +14,7 @@ module parameters
     real(8), parameter :: kB = 1.38064852d-23
     real(8), parameter :: pi = 3.141592653589793238462643383279
 
-    real(8), parameter :: time_step_p=1d-4, time_step_s=time_step_p, mass_p=1, mass_s=1, T_set=1, v_gradient=0.2
+    real(8), parameter :: time_step_p=1d-3, time_step_s=time_step_p, mass_p=1, mass_s=1, T_set=1, v_gradient=0.2
 
     ! polymer 位置 速度 力 上一次力
     real(8), dimension(3,n_p) :: x_p, v_p, f_p, f0_p
@@ -183,12 +183,12 @@ contains
 
     subroutine periodic_p()
         implicit none
-        x_p(3,:)=x_p(3,:)-nint(x_p(3,:)/n_cell_z)*n_cell_z
+        x_p(3,:)=x_p(3,:)-box_size(3)*nint((x_p(3,:)-half_box_size))/box_size(3)
     endsubroutine
 
     subroutine periodic_s()
         implicit none
-        x_s(3,:)=x_s(3,:)-nint(x_s(3,:)/n_cell_z)*n_cell_z
+        x_s(3,:)=x_s(3,:)-int(x_s(3,:)/half_box_size)*box_size(3)*box_size_unit
     endsubroutine
 
     subroutine FENE(f,U,rx)
@@ -240,13 +240,13 @@ contains
         ! 链两端
         call FENE(f_p(:,1),U,x_p(:,1)-x_p(:,2))
         call FENE(f_p(:,n_p),U,x_p(:,n_p)-x_p(:,n_p-1))
-!write(*,*) 'force0',f_p(:,1)
+        !write(*,*) 'force0',f_p(:,1)
         !$omp parallel do private(j,temp) reduction(+:U,f_p)
         do i=1,n_p
             if (i>1 .and. i<n_p) then
                 ! UFENE(r) force
-                call FENE(f_p(:,i),U,x_p(:,i)-x_p(:,j+1))
-                call FENE(f_p(:,i),U,x_p(:,i)-x_p(:,j-1))
+                call FENE(f_p(:,i),U,x_p(:,i)-x_p(:,i+1))
+                call FENE(f_p(:,i),U,x_p(:,i)-x_p(:,i-1))
                 ! bend energy
                 call BEND(f_p(:,i),U,x_p(:,i+1)-x_p(:,i),x_p(:,i)-x_p(:,i-1))
             endif
@@ -258,19 +258,23 @@ contains
                 endif
             enddo
 
-!            temp(2)=x_p(2,i)
-!            call LJ(f_p(:,i),U,temp)
-!            temp(2)=n_cell_y-x_p(2,i)
-!            call LJ(f_p(:,i),U,temp)
-
         enddo
         !$omp end parallel do
         !write(*,*) 'force1',f_p(:,1)
+
+        call periodic_p()
+
+        do i=1,n_p
+            do j=1,n_b
+                call LJ(f_p(:,i),U,x_p(:,i)-x_b(:,j))
+            enddo
+
+        enddo
+
         if (mode==0) then
             f0_p=f_p
         endif
 
-        call periodic_p()
 
     end subroutine
 
@@ -333,7 +337,7 @@ contains
                             v_aver_p=v_aver_p+v_p(:,i)
                         endif
                     enddo
-!write(*,*)ix,iy,iz,count_p
+                    !write(*,*)ix,iy,iz,count_p
                     count_s=0
                     v_aver_s=0d0
                     mask_s=.false.
@@ -345,7 +349,7 @@ contains
                             v_aver_s=v_aver_s+v_s(:,i)
                         endif
                     enddo
-!write(*,*)ix,iy,iz,count_s
+                    !write(*,*)ix,iy,iz,count_s
                     if((count_s==0).and.(count_p==0))then
                         v_aver=0
                     else
@@ -404,24 +408,24 @@ contains
         integer cur_step,step,output_file,k
 
         if(mod(cur_step,step)==0)then
-        write(output_file,*)'ITEM:TIMESTEP'
-        write(output_file,'(I9)')cur_step
-        write(output_file,*)'ITEM:NUMBER OF ATOMS'
-        write(output_file,'(I6)')n_b+n_p+n_s
-        write(output_file,*)'ITEM:BOX BOUNDS'
-        write(output_file,'(2F7.1)')-radius,radius
-        write(output_file,'(2F7.1)')-radius,radius
-        write(output_file,'(2F7.1)')-n_cell_z/2.0,n_cell_z/2.0
-        write(output_file,*)'ITEM:ATOMS id type x y z'
-        do k=1,n_b
-            write(output_file,'(2I6,3F13.4)') k,1,x_b(:,k)
-        enddo
-        do k=1,n_p
-            write(output_file,'(2I6,3F13.4)') n_b+k,2,x_p(:,k)
-        enddo
-        do k=1,n_s
-            write(output_file,'(2I6,3F13.4)') n_b+n_p+k,3,x_s(:,k)
-        enddo
+            write(output_file,*)'ITEM:TIMESTEP'
+            write(output_file,'(I9)')cur_step
+            write(output_file,*)'ITEM:NUMBER OF ATOMS'
+            write(output_file,'(I6)')n_b+n_p+n_s
+            write(output_file,*)'ITEM:BOX BOUNDS'
+            write(output_file,'(2F7.1)')-radius,radius
+            write(output_file,'(2F7.1)')-radius,radius
+            write(output_file,'(2F7.1)')-n_cell_z/2.0,n_cell_z/2.0
+            write(output_file,*)'ITEM:ATOMS id type x y z'
+            do k=1,n_b
+                write(output_file,'(2I6,3F13.4)') k,1,x_b(:,k)
+            enddo
+            do k=1,n_p
+                write(output_file,'(2I6,3F13.4)') n_b+k,2,x_p(:,k)
+            enddo
+            do k=1,n_s
+                write(output_file,'(2I6,3F13.4)') n_b+n_p+k,3,x_s(:,k)
+            enddo
         endif
 
     end subroutine
@@ -432,7 +436,7 @@ contains
         real(8) U
         energy_file=13
         if(mod(cur_step,step)==0)then
-        write(energy_file,*) cur_step,U
+            write(energy_file,*) cur_step,U
         endif
     end subroutine
 
@@ -446,7 +450,7 @@ program Poissonfield
     integer :: equili_step,equili_interval_step,total_step,output_interval_step,cur_step_per_rot,total_step_per_rot, &
         cur_step,total_rot_step,output_file
 
-   ! real(8), allocatable :: randnum_group(:,:)
+    ! real(8), allocatable :: randnum_group(:,:)
 
     integer i, j
     real(8) randx, randz, ppx, ppz
@@ -471,48 +475,47 @@ program Poissonfield
     call init()
     call output(output_file,0,equili_interval_step)
 
-!    allocate(randnum_group(3,n_s))
-!    call random_number(randnum_group)
-!    x_s(:,:) = x_s(:,:) + (randnum_group(:,:)-0.5)*box_size_unit
-!    deallocate(randnum_group)
+    !    allocate(randnum_group(3,n_s))
+    !    call random_number(randnum_group)
+    !    x_s(:,:) = x_s(:,:) + (randnum_group(:,:)-0.5)*box_size_unit
+    !    deallocate(randnum_group)
 
-!    do i=1,n_s
-!        x_s(3,i) = x_s(3,i) - box_size(3)*nint((x_s(3,i)-half_box_size(3))/box_size(3))
-!    enddo
+    !    do i=1,n_s
+    !        x_s(3,i) = x_s(3,i) - box_size(3)*nint((x_s(3,i)-half_box_size(3))/box_size(3))
+    !    enddo
 
-     !!!polymer的初速度
+    !!!polymer的初速度
     call random_number(v_p)
     !!!solution的初速度
     call random_number(v_s)
     v_p=v_p-0.5
     v_s=v_s-0.5
     call scale_v(Ek_scaled, T_set, T_scaled)
-        write(*,*) 'Polymer: '
-        write(*,*) 'Initial scaled kinetics Ek_scaled: ',Ek_scaled
-        write(*,*) 'Initial setted temperature T_set: ',T_set
-        write(*,*) 'Initial scaled temperature T_scaled: ',T_scaled
+    write(*,*) 'Polymer: '
+    write(*,*) 'Initial scaled kinetics Ek_scaled: ',Ek_scaled
+    write(*,*) 'Initial setted temperature T_set: ',T_set
+    write(*,*) 'Initial scaled temperature T_scaled: ',T_scaled
 
-        write(*,*) 'Solution: '
-        write(*,*) 'Initial scaled kinetics Ek_scaled=',Ek_scaled
-        write(*,*) 'Initial setted temperature T_set=',T_set
-        write(*,*) 'Initial scaled temperature T_scaled=',T_scaled
+    write(*,*) 'Solution: '
+    write(*,*) 'Initial scaled kinetics Ek_scaled=',Ek_scaled
+    write(*,*) 'Initial setted temperature T_set=',T_set
+    write(*,*) 'Initial scaled temperature T_scaled=',T_scaled
 
     ! 没有外场时，polymer和solution达到平衡
-        call update_force(0)
+    call update_force(0)
 
     do cur_step=1,equili_step
-                if(mod(cur_step,10000)==0)then
-            !write(*,*)v_s(:,1)
+        if(mod(cur_step,1000)==0)then
+            write(*,*) cur_step
         endif
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
-        x_s = x_s + v_s*time_step_s
+        !x_s = x_s + v_s*time_step_s
         call update_force(1)
-        !write(*,*) v_p(:,2)
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
         !write(*,*) v_p(:,2),f0_p(:,2),f_p(:,2)
         call scale_v(Ek,T_set,T_scaled)
-        call cal_collision_velocity()
-        call scale_v(Ek,T_set,T_scaled)
+        !      call cal_collision_velocity()
+        !      call scale_v(Ek,T_set,T_scaled)
         f0_p=f_p
         call output(output_file,cur_step,equili_interval_step)
         if(mod(cur_step,10)==0)then
