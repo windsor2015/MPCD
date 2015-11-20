@@ -29,6 +29,8 @@ module parameters
 
     real(8), parameter::sigma=1, epson=1, radius=4
 
+    real(8), parameter::density_s=3
+
 contains
 
     function distance(x1,x2)
@@ -44,7 +46,7 @@ contains
     subroutine init()
         implicit none
         integer i,j,k,h,count_number
-        real(8) distant,dx(2,4), temp(3,10000)
+        real(8) distant,dx(2,4), temp(3,10000), scalar
         logical success
         integer,parameter :: seed = 86456
 
@@ -135,25 +137,23 @@ contains
 
         !!!!!!!!!!!!!!!!以下是solution粒子的初值!!!!!!!!!!!!!!
 
+        scalar=density_s**(1d0/3)
         n_s=0
-        do i=0,n_cell_x
-            do j=0,n_cell_y
-                do k=0,n_cell_z
+        do i=0,n_cell_x*scalar
+            do j=0,n_cell_y*scalar
+                do k=0,n_cell_z*scalar
                     n_s=n_s+1
-                    temp(1,n_s)=(i-n_cell_x/2d0)*box_size_unit
-                    temp(2,n_s)=(j-n_cell_y/2d0)*box_size_unit
-                    temp(3,n_s)=(k-n_cell_z/2d0)*box_size_unit
+                    temp(:,n_s)=([i,j,k]-[n_cell_x,n_cell_y,n_cell_z]*scalar/2d0)/scalar
                     distant=sqrt(temp(1,n_s)**2+temp(2,n_s)**2)
-                    if(distant>radius-1.0 .or. temp(3,n_s)>n_cell_z/2.0 .or. temp(3,n_s)<-n_cell_z/2.0)then
+                    if(distant>radius .or. abs(temp(3,n_s))>n_cell_z/2.0)then
                         n_s=n_s-1
                         cycle
                     endif
-
                     !write(output_file,'(2I6,3F13.4)') n_b+n_p+n_s,3,x_s(:,n_s)
                 enddo
             enddo
         enddo
-        allocate(x_s(3,n_s),v_s(3,n_s), f_s(3,n_s), x0_s(3,n_s))
+        allocate(x_s(3,n_s),v_s(3,n_s),f_s(3,n_s),x0_s(3,n_s))
         x_s=temp(:,1:n_s)
         write(*,*)"Solvent particle number: ", n_s
         write(*,*)"Total particle number: ", n_b+n_p+n_s
@@ -183,12 +183,12 @@ contains
 
     subroutine periodic_p()
         implicit none
-        x_p(3,:)=x_p(3,:)-box_size(3)*nint((x_p(3,:)-half_box_size))/box_size(3)
+        x_p(3,:)=x_p(3,:)-n_cell_z*nint((x_p(3,:)-n_cell_z/2d0))/n_cell_z
     endsubroutine
 
     subroutine periodic_s()
         implicit none
-        x_s(3,:)=x_s(3,:)-int(x_s(3,:)/half_box_size)*box_size(3)*box_size_unit
+        x_s(3,:)=x_s(3,:)-n_cell_z*nint((x_s(3,:)-n_cell_z/2d0))/n_cell_z
     endsubroutine
 
     subroutine FENE(f,U,rx)
@@ -440,6 +440,58 @@ contains
         endif
     end subroutine
 
+    subroutine bounce_back_s()
+        implicit none
+        integer i
+        real(8), dimension(2):: x0,x1,v0,v1,xc,xm
+        real(8) a,b,c,t,delta,norm_rest,s,det, norm_cs
+
+        do i=1,n_s
+            ! 越界则回弹
+            if (x_s(1,i)**2+x_s(2,i)**2>radius**2) then
+                x1=x_s(1:2,i)
+                v0=v_s(1:2,i)
+                x0=x1-v0*time_step_s
+                xm=x1-x0
+                ! solve equation
+                !注意c必定小于0，因此解必有一正一负，仅取正值
+                a=xm(1)**2+xm(2)**2
+                b=2*x0(1)*xm(1)+2*x0(2)*xm(2)
+                c=x0(1)**2+x0(2)**2-radius**2
+                delta=b**2-4*a*c
+                if (delta<0) cycle
+                t=(-b+sqrt(delta))/2/a
+                if (t<0 .or. t>1) cycle
+                xc=x0+(x1-x0)*t
+
+                det=xm(1)**2+xm(2)**2
+                if (det==0) cycle
+                c=(xc(1)*xm(1)+xc(2)*xm(2))/det
+                s=(xc(2)*xm(1)-xc(1)*xm(2))/det
+
+                norm_cs=sqrt(c**2+s**2)
+                c=c/norm_cs
+                s=s/norm_cs
+
+                xm=x1-xc
+
+                x1(1)=c*xm(1)-s*xm(2)
+                x1(2)=s*xm(1)+c*xm(2)
+
+                x1=xc+x1
+
+                v1(1)=c*v0(1)-s*v0(2)
+                v1(2)=s*v0(1)+c*v0(2)
+
+                x_s(1:2,i)=x1
+                v_s(1:2,i)=v1
+            endif
+        enddo
+
+
+
+    end subroutine
+
 end module
 
 
@@ -466,7 +518,7 @@ program Poissonfield
 
     box_size = [n_cell_x, n_cell_y, n_cell_z]
     half_box_size(3) = n_cell_z/2d0
-    density=3.0
+    !density=3.0
     box_size_unit=(1/density)**(1d0/3)
     half_box_size_unit=box_size_unit/2
 
@@ -509,7 +561,8 @@ program Poissonfield
             write(*,*) cur_step
         endif
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
-        !x_s = x_s + v_s*time_step_s
+        x_s = x_s + v_s*time_step_s
+        call bounce_back_s()
         call update_force(1)
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
         !write(*,*) v_p(:,2),f0_p(:,2),f_p(:,2)
