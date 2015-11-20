@@ -443,7 +443,7 @@ contains
         implicit none
         integer i
         real(8), dimension(2):: x0,x1,v0,v1,xc,xm
-        real(8) a,b,c,t,delta,norm_rest,s,det, norm_cs
+        real(8) a,b,c,t,delta,norm_rest,s,det,norm_cs
 
         do i=1,n_s
             ! 越界则回弹
@@ -476,10 +476,12 @@ contains
                 norm_rest=norm2(x1-xc)
                 x1(1)=-(c*xc(1)-s*xc(2))
                 x1(2)=-(s*xc(1)+c*xc(2))
+
+                v1=x1*norm2(v0)/radius
+
                 x1=xc+x1*norm_rest/radius
 
-                v1(1)=c*v0(1)-s*v0(2)
-                v1(2)=s*v0(1)+c*v0(2)
+
 
                 x_s(1:2,i)=x1
                 v_s(1:2,i)=v1
