@@ -8,3 +8,4 @@
 *.depend
 *.out
 wn/libblas.a
+wn/dump.cylinder.lammpstrj

@@ -63,7 +63,7 @@ contains
                     temp(1,n_b)=radius*cos(i*pi/k+pi/(2d0*k))
                     temp(2,n_b)=radius*sin(i*pi/k+pi/(2d0*k))
                 endif
-                temp(3,n_b)=(j-n_cell_z)*0.5*box_size_unit
+                temp(3,n_b)=(j-n_cell_z)*0.5
                 ! write(output_file,'(2I6,3F13.4)') n_b,1,x_b(:,n_b)
             enddo
         enddo
@@ -183,12 +183,12 @@ contains
 
     subroutine periodic_p()
         implicit none
-        x_p(3,:)=x_p(3,:)-n_cell_z*nint((x_p(3,:)-n_cell_z/2d0))/n_cell_z
+        x_p(3,:)=x_p(3,:)-n_cell_z*nint((x_p(3,:))/n_cell_z)
     endsubroutine
 
     subroutine periodic_s()
         implicit none
-        x_s(3,:)=x_s(3,:)-n_cell_z*nint((x_s(3,:)-n_cell_z/2d0))/n_cell_z
+        x_s(3,:)=x_s(3,:)-n_cell_z*nint((x_s(3,:))/n_cell_z)
     endsubroutine
 
     subroutine FENE(f,U,rx)
@@ -453,17 +453,18 @@ contains
                 v0=v_s(1:2,i)
                 x0=x1-v0*time_step_s
                 xm=x1-x0
-                ! solve equation
-                !注意c必定小于0，因此解必有一正一负，仅取正值
+                ! solve equation sum((t*xm-x0)**2)=radius**2
+                ! 对于a*t^2+b*t+c=0，c必定小于0，因此解必有一正一负，仅取正值
                 a=xm(1)**2+xm(2)**2
                 b=2*x0(1)*xm(1)+2*x0(2)*xm(2)
                 c=x0(1)**2+x0(2)**2-radius**2
                 delta=b**2-4*a*c
                 if (delta<0) cycle
                 t=(-b+sqrt(delta))/2/a
+                !write(*,*) t
                 if (t<0 .or. t>1) cycle
+                ! 旋转，最好参看配图
                 xc=x0+(x1-x0)*t
-
                 det=xm(1)**2+xm(2)**2
                 if (det==0) cycle
                 c=(xc(1)*xm(1)+xc(2)*xm(2))/det
@@ -473,18 +474,17 @@ contains
                 c=c/norm_cs
                 s=s/norm_cs
 
-                xm=x1-xc
-
-                x1(1)=c*xm(1)-s*xm(2)
-                x1(2)=s*xm(1)+c*xm(2)
-
-                x1=xc+x1
+                norm_rest=norm2(x1-xc)
+                x1(1)=-(c*xc(1)-s*xc(2))
+                x1(2)=-(s*xc(1)+c*xc(2))
+                x1=xc+x1*norm_rest/radius
 
                 v1(1)=c*v0(1)-s*v0(2)
                 v1(2)=s*v0(1)+c*v0(2)
 
                 x_s(1:2,i)=x1
                 v_s(1:2,i)=v1
+                !write(*,*) x1
             endif
         enddo
 
@@ -563,6 +563,7 @@ program Poissonfield
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
         x_s = x_s + v_s*time_step_s
         call bounce_back_s()
+        call periodic_s()
         call update_force(1)
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
         !write(*,*) v_p(:,2),f0_p(:,2),f_p(:,2)
