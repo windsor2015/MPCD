@@ -5,7 +5,7 @@ module parameters
     ! 下标约定: p - polymer, s - solution, b - boundary
 
     !结构
-    integer, parameter :: n_p=40, n_cell_x=5, n_cell_y=5, n_cell_z=15
+    integer, parameter :: n_p=40, n_cell_x=30, n_cell_y=30, n_cell_z=20
 
     integer n_b, n_s
 
@@ -14,7 +14,7 @@ module parameters
     real(8), parameter :: kB = 1.38064852d-23
     real(8), parameter :: pi = 3.141592653589793238462643383279
 
-    real(8), parameter :: time_step_p=0.0001, time_step_s=0.0001, mass_p=1, mass_s=0.1, T_set=1, v_gradient=0.2
+    real(8), parameter :: time_step_p=0.0001, time_step_s=0.0001, mass_p=1, mass_s=1, T_set=1, v_gradient=0.2
 
     ! polymer 位置 速度 力 上一次力
     real(8), dimension(3,n_p) :: x_p, v_p, f_p, f0_p
@@ -51,7 +51,7 @@ contains
         !!!!!!!!!以下是cylinder channel初值!!!!!!!!!!!!!!
         n_b=0
         k=nint(2.0*pi*radius)
-        do j=0,2*n_cell_z-1
+        do j=0,2*n_cell_z
             do i=0,2*k-1
                 n_b=n_b+1
                 if(mod(j,2)==0)then
@@ -61,7 +61,7 @@ contains
                     temp(1,n_b)=radius*cos(i*pi/k+pi/(2d0*k))
                     temp(2,n_b)=radius*sin(i*pi/k+pi/(2d0*k))
                 endif
-                temp(3,n_b)=(j-n_cell_z)*0.5
+                temp(3,n_b)=(j-n_cell_z)*0.5*box_size_unit
                 ! write(output_file,'(2I6,3F13.4)') n_b,1,x_b(:,n_b)
             enddo
         enddo
@@ -331,7 +331,7 @@ contains
                             v_aver_p=v_aver_p+v_p(:,i)
                         endif
                     enddo
-
+!write(*,*)ix,iy,iz,count_p
                     count_s=0
                     v_aver_s=0d0
                     mask_s=.false.
@@ -343,7 +343,7 @@ contains
                             v_aver_s=v_aver_s+v_s(:,i)
                         endif
                     enddo
-
+!write(*,*)ix,iy,iz,count_s
                     if((count_s==0).and.(count_p==0))then
                         v_aver=0
                     else
@@ -452,7 +452,7 @@ program Poissonfield
     output_file=12
 
     equili_step=500000
-    equili_interval_step=1000
+    equili_interval_step=1
     total_step=3000000
     output_interval_step=10000
     total_rot_step=500000
@@ -460,7 +460,7 @@ program Poissonfield
 
     box_size = [n_cell_x, n_cell_y, n_cell_z]
     half_box_size(3) = n_cell_z/2d0
-    density=0.85
+    density=3.0
     box_size_unit=(1/density)**(1d0/3)
     half_box_size_unit=box_size_unit/2
 
@@ -506,6 +506,7 @@ program Poissonfield
         x_s = x_s + v_s*time_step_s
         call update_force(1)
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
+        call scale_v(Ek,T_set,T_scaled)
         call cal_collision_velocity()
         call scale_v(Ek,T_set,T_scaled)
         f0_p=f_p
