@@ -14,7 +14,7 @@ module parameters
     real(8), parameter :: kB = 1.38064852d-23
     real(8), parameter :: pi = 3.141592653589793238462643383279
 
-    real(8), parameter :: time_step_p=0.0001, time_step_s=0.0001, mass_p=1, mass_s=1, T_set=1, v_gradient=0.2
+    real(8), parameter :: time_step_p=1d-4, time_step_s=time_step_p, mass_p=1, mass_s=1, T_set=1, v_gradient=0.2
 
     ! polymer 位置 速度 力 上一次力
     real(8), dimension(3,n_p) :: x_p, v_p, f_p, f0_p
@@ -240,6 +240,7 @@ contains
         ! 链两端
         call FENE(f_p(:,1),U,x_p(:,1)-x_p(:,2))
         call FENE(f_p(:,n_p),U,x_p(:,n_p)-x_p(:,n_p-1))
+!write(*,*) 'force0',f_p(:,1)
         !$omp parallel do private(j,temp) reduction(+:U,f_p)
         do i=1,n_p
             if (i>1 .and. i<n_p) then
@@ -257,13 +258,14 @@ contains
                 endif
             enddo
 
-            temp(2)=x_p(2,i)
-            call LJ(f_p(:,i),U,temp)
-            temp(2)=n_cell_y-x_p(2,i)
-            call LJ(f_p(:,i),U,temp)
+!            temp(2)=x_p(2,i)
+!            call LJ(f_p(:,i),U,temp)
+!            temp(2)=n_cell_y-x_p(2,i)
+!            call LJ(f_p(:,i),U,temp)
+
         enddo
         !$omp end parallel do
-
+        !write(*,*) 'force1',f_p(:,1)
         if (mode==0) then
             f0_p=f_p
         endif
@@ -452,7 +454,7 @@ program Poissonfield
     output_file=12
 
     equili_step=500000
-    equili_interval_step=1
+    equili_interval_step=10
     total_step=3000000
     output_interval_step=10000
     total_rot_step=500000
@@ -500,19 +502,21 @@ program Poissonfield
 
     do cur_step=1,equili_step
                 if(mod(cur_step,10000)==0)then
-            write(*,*)v_s(:,1)
+            !write(*,*)v_s(:,1)
         endif
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
         x_s = x_s + v_s*time_step_s
         call update_force(1)
+        !write(*,*) v_p(:,2)
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
+        !write(*,*) v_p(:,2),f0_p(:,2),f_p(:,2)
         call scale_v(Ek,T_set,T_scaled)
         call cal_collision_velocity()
         call scale_v(Ek,T_set,T_scaled)
         f0_p=f_p
         call output(output_file,cur_step,equili_interval_step)
-        if(mod(cur_step,10000)==0)then
-            write(*,*)v_s(:,1)
+        if(mod(cur_step,10)==0)then
+            !write(*,*)v_s(:,1)
         endif
     enddo
 
