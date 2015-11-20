@@ -145,7 +145,7 @@ contains
                     n_s=n_s+1
                     temp(:,n_s)=([i,j,k]-[n_cell_x,n_cell_y,n_cell_z]*scalar/2d0)/scalar
                     distant=sqrt(temp(1,n_s)**2+temp(2,n_s)**2)
-                    if(distant>radius .or. abs(temp(3,n_s))>n_cell_z/2.0)then
+                    if(distant>=radius .or. abs(temp(3,n_s))>n_cell_z/2.0)then
                         n_s=n_s-1
                         cycle
                     endif
@@ -275,7 +275,6 @@ contains
             f0_p=f_p
         endif
 
-
     end subroutine
 
     logical function inbox(x,ix,iy,iz)
@@ -299,9 +298,9 @@ contains
         logical mask_p(n_p), mask_s(n_s)
         ! calculate velocity of all particles in each cell
         k=0
-        do ix=0,n_cell_x-1
-            do iy=0,n_cell_y-1
-                do iz=0,n_cell_x-1
+        do ix=1,n_cell_x
+            do iy=1,n_cell_y
+                do iz=1,n_cell_z
 
                     k=k+1
 
@@ -448,7 +447,7 @@ contains
 
         do i=1,n_s
             ! 越界则回弹
-            if (x_s(1,i)**2+x_s(2,i)**2>radius**2) then
+            if (x_s(1,i)**2+x_s(2,i)**2>=radius**2) then
                 x1=x_s(1:2,i)
                 v0=v_s(1:2,i)
                 x0=x1-v0*time_step_s
@@ -488,8 +487,6 @@ contains
             endif
         enddo
 
-
-
     end subroutine
 
 end module
@@ -527,15 +524,6 @@ program Poissonfield
     call init()
     call output(output_file,0,equili_interval_step)
 
-    !    allocate(randnum_group(3,n_s))
-    !    call random_number(randnum_group)
-    !    x_s(:,:) = x_s(:,:) + (randnum_group(:,:)-0.5)*box_size_unit
-    !    deallocate(randnum_group)
-
-    !    do i=1,n_s
-    !        x_s(3,i) = x_s(3,i) - box_size(3)*nint((x_s(3,i)-half_box_size(3))/box_size(3))
-    !    enddo
-
     !!!polymer的初速度
     call random_number(v_p)
     !!!solution的初速度
@@ -568,8 +556,8 @@ program Poissonfield
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
         !write(*,*) v_p(:,2),f0_p(:,2),f_p(:,2)
         call scale_v(Ek,T_set,T_scaled)
-        !      call cal_collision_velocity()
-        !      call scale_v(Ek,T_set,T_scaled)
+        call cal_collision_velocity()
+        call scale_v(Ek,T_set,T_scaled)
         f0_p=f_p
         call output(output_file,cur_step,equili_interval_step)
         if(mod(cur_step,10)==0)then
