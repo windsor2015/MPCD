@@ -4,7 +4,7 @@ FFLAGS=-I. -O3 -mcmodel=large -shared-intel -w -mkl -fpp -extend-source -finline
 MPIFFLAGS=$(FFLAGS) -DUSE_MPI
 #LDFLAGS=-L. -llapack -lblas
 SOURCES=$(wildcard *.f90)
-OBJECTS=ifort/$(SOURCES:.f90=.o)
+OBJECTS=$(SOURCES:.f90=.o)
 TARGET=wn
 
 .PHONY: all
