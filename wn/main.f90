@@ -375,7 +375,6 @@ contains
                             v_s(3,i)=v_aver(3) + matrix(3,1)*temp(1) + matrix(3,2)*temp(2) + matrix(3,3)*temp(3)
                         endif
                     enddo
-
                 enddo
             enddo
         enddo
@@ -501,20 +500,18 @@ program Poissonfield
     use parameters
     implicit none
     real(8) :: Ek, EK_scaled, T_scaled, density
-    integer :: equili_step,equili_interval_step,total_step,output_interval_step,cur_step_per_rot,total_step_per_rot, &
-        cur_step,total_rot_step,output_file
+    integer :: equili_step,equili_interval_step,total_step,output_interval_step, &
+        cur_step,output_file
 
     integer i, j
     real(8) randx, randz, gama
-
+    gama=1
     output_file=12
 
-    equili_step=500000
-    equili_interval_step=10
+    equili_step=50000
+    equili_interval_step=1000
     total_step=3000000
-    output_interval_step=10000
-    total_rot_step=500000
-    total_step_per_rot=200
+    output_interval_step=1000
 
     box_size = [n_cell_x, n_cell_y, n_cell_z]
     half_box_size(3) = n_cell_z/2d0
@@ -581,12 +578,14 @@ program Poissonfield
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
         !write(*,*) v_p(:,2),f0_p(:,2),f_p(:,2)
         call scale_v(Ek,T_set,T_scaled)
-        v_s = v_s + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+        v_s(3,:) = v_s(3,:) + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         call cal_collision_velocity()
-        v_s = v_s - gama + gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+        v_p(3,:) = v_p(3,:) - gama + gama*(x_p(1,:)**2+x_p(2,:)**2)/radius**2
+        v_s(3,:) = v_s(3,:) - gama + gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         call scale_v(Ek,T_set,T_scaled)
+        v_p(3,:) = v_p(3,:) + gama - gama*(x_p(1,:)**2+x_p(2,:)**2)/radius**2
         f0_p=f_p
-        call output(output_file,cur_step,equili_interval_step)
+        call output(output_file,cur_step,output_interval_step)
     enddo
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
