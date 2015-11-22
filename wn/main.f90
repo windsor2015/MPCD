@@ -504,10 +504,8 @@ program Poissonfield
     integer :: equili_step,equili_interval_step,total_step,output_interval_step,cur_step_per_rot,total_step_per_rot, &
         cur_step,total_rot_step,output_file
 
-    ! real(8), allocatable :: randnum_group(:,:)
-
     integer i, j
-    real(8) randx, randz, ppx, ppz
+    real(8) randx, randz, gama
 
     output_file=12
 
@@ -520,7 +518,6 @@ program Poissonfield
 
     box_size = [n_cell_x, n_cell_y, n_cell_z]
     half_box_size(3) = n_cell_z/2d0
-    !density=3.0
     box_size_unit=(1/density)**(1d0/3)
     half_box_size_unit=box_size_unit/2
 
@@ -549,8 +546,9 @@ program Poissonfield
     ! 没有外场时，polymer和solution达到平衡
     call update_force(0)
 
+    write(*,*)'Equilibrium begin:'
     do cur_step=1,equili_step
-        if(mod(cur_step,1000)==0)then
+        if(mod(cur_step,equili_interval_step)==0)then
             write(*,*) cur_step
         endif
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
@@ -565,124 +563,47 @@ program Poissonfield
         call scale_v(Ek,T_set,T_scaled)
         f0_p=f_p
         call output(output_file,cur_step,equili_interval_step)
-        if(mod(cur_step,10)==0)then
-            !write(*,*)v_s(:,1)
-        endif
     enddo
 
-    call cal_collision_velocity()
-
-    write(*,*)'循环开始'
+    write(*,*)'Production begin'
     !!! compute a(t-dt)
     call update_force(0)
-    !    do i=1,256
-    !        x_up1(i)=x_bu(i)
-    !        z_up1(i)=z_bu(i)
-    !        x_down1(i)=x_bd(i)
-    !        z_down1(i)=z_bd(i)
-    !    enddo
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        do cur_step=1,total_step
+        if(mod(cur_step,output_interval_step)==0)then
+            write(*,*) cur_step
+        endif
+        x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
+        x_s = x_s + v_s*time_step_s
+        call bounce_back_s()
+        call periodic_s()
+        call update_force(1)
+        v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
+        !write(*,*) v_p(:,2),f0_p(:,2),f_p(:,2)
+        call scale_v(Ek,T_set,T_scaled)
+        v_s = v_s + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+        call cal_collision_velocity()
+        v_s = v_s - gama + gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+        call scale_v(Ek,T_set,T_scaled)
+        f0_p=f_p
+        call output(output_file,cur_step,equili_interval_step)
+    enddo
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    x0_s=x_s
+!        randx=rand(0)
+!        randz=rand(0)
+!        x_p(1,:)=x_p(1,:)+(randx-0.5)*box_size_unit
+!        x_p(3,:)=x_p(3,:)+(randz-0.5)*box_size_unit
+!
+!                x_s(1,:)=x_s(1,:)+ppx
+!                x_s(3,:)=x_s(3,:)+ppz
+!
+!                x_s(1,:)=x_s(1,:)+(randx-0.5)*box_size_unit
+!                x_s(3,:)=x_s(3,:)+(randz-0.5)*box_size_unit
+!
+!                x_s(1,:)=x_s(1,:)-box_size(1)*nint((x_s(1,:)-(ppx+half_box_size(1)))/box_size(1))
+!                x_s(3,:)=x_s(3,:)-box_size(3)*nint((x_s(3,:)-(ppz+half_box_size(3)))/box_size(3))
 
-    do cur_step=1,total_step
-
-        do cur_step_per_rot=1,total_step_per_rot
-
-            !!!!!! compute a(t+dt)
-            x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
-            x_p(1,:) = x_p(1,:)-0.1*(x_p(2,:)**2-15.0*x_p(2,:))*v_gradient*time_step_p
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            call update_force(1)
-
-            v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
-            call scale_v(Ek,T_set,T_scaled)
-            f0_p=f_p
-            !   call output(cur_step_pri)
-
-        enddo        !!!!st3
-
-        randx=rand(0)
-        randz=rand(0)
-        x_p(1,:)=x_p(1,:)+(randx-0.5)*box_size_unit
-        x_p(3,:)=x_p(3,:)+(randz-0.5)*box_size_unit
-
-        ppx=0.05
-        ppz=0.05
-
-        do j=1,n_p
-
-            if(box_size(1)*nint((x_p(1,j)-half_box_size(1))/box_size(1))/=ppx &
-                    .or.box_size(3)*nint((x_p(3,j)-half_box_size(3))/box_size(3))/=ppz)then
-                !                do i=1,256
-                !                    x_bu(i)=x_up1(i)
-                !                    z_bu(i)=z_up1(i)
-                !                    x_bd(i)=x_down1(i)
-                !                    z_bd(i)=z_down1(i)
-                !                enddo
-
-                x_s=x0_s
-
-                ppx=box_size(1)*nint((x_p(1,j)-half_box_size(1))/box_size(1))
-                ppz=box_size(3)*nint((x_p(3,j)-half_box_size(3))/box_size(3))
-
-                !                do i=1,256
-                !                    x_bu(i)=x_bu(i)+ppx
-                !                    z_bu(i)=z_bu(i)+ppz
-                !                    x_bd(i)=x_bd(i)+ppx
-                !                    z_bd(i)=z_bd(i)+ppz
-                !                enddo
-
-                x_s(1,:)=x_s(1,:)+ppx
-                x_s(3,:)=x_s(3,:)+ppz
-
-                x_s = x_s + v_s*time_step_s
-                x_s(1,:) = x_s(1,:) -0.1*(x_s(2,:)**2-15.0*x_s(2,:))*v_gradient*time_step_s
-                ! 弹回, 看起来不对
-                do i=1,n_s
-                    !y12(i)=y_s(i)
-                    !if(y_s(i)>=box_size_y.or.y_s(i)<=0)then
-                    !y_s(i)=y12(i)
-                    !endif
-                enddo
-
-                x_s(1,:)=x_s(1,:)+(randx-0.5)*box_size_unit
-                x_s(3,:)=x_s(3,:)+(randz-0.5)*box_size_unit
-
-                x_s(1,:)=x_s(1,:)-box_size(1)*nint((x_s(1,:)-(ppx+half_box_size(1)))/box_size(1))
-                x_s(3,:)=x_s(3,:)-box_size(3)*nint((x_s(3,:)-(ppz+half_box_size(3)))/box_size(3))
-
-                !if(cur_step>=st0.and.cur_step<st00.and.MOD(cur_step,st22)==0)then
-                !    write(100,*)cur_step,j
-                !endif
-
-                call cal_collision_velocity()
-
-                call scale_v(Ek,T_set,T_scaled)
-
-            endif
-
-        enddo
-
-
-
-    enddo        !!!!!step
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    close(70)
-    close(80)
-    close(81)
-    close(821)
-    close(82)
-    close(83)
-    close(84)
-    close(88)
-    close(90)
-    close(91)
-    close(100)
-    close(110)
-    close(111)
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 
 end program Poissonfield
