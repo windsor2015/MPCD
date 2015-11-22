@@ -1,4 +1,4 @@
-!DIR$ ATTRIBUTES FORCEINLINE :: FENE, LJ, BEND, inbox, scale_v
+
 module parameters
 #ifdef __INTEL_COMPILER
     use ifport
@@ -301,6 +301,7 @@ contains
         logical mask_p(n_p), mask_s(n_s)
         ! calculate velocity of all particles in each cell
         k=0
+        !$omp parallel do private(iy,iz,count_p,count_s,i,momentum,matrix,l,fai,theta,v_aver_p,v_aver_s,v_aver,temp,mask_p,mask_s)
         do ix=1,n_cell_x
             do iy=1,n_cell_y
                 do iz=1,n_cell_z
@@ -379,6 +380,7 @@ contains
                 enddo
             enddo
         enddo
+        !$omp end parallel do
     end subroutine
 
     !!!!以下是Isokinetics thermostat，可以试一下Berendsen thermostat
@@ -447,7 +449,7 @@ contains
         integer i
         real(8), dimension(2):: x0,x1,v0,v1,xc,xm
         real(8) a,b,c,t,delta,norm_rest,s,det,norm_cs
-
+!$omp parallel do private(x0,x1,v0,v1,xc,xm,a,b,c,t,delta,norm_rest,det,norm_cs)
         do i=1,n_s
             ! 越界则回弹
             if (x_s(1,i)**2+x_s(2,i)**2>=radius**2) then
@@ -491,7 +493,7 @@ contains
                 !write(*,*) x1
             endif
         enddo
-
+!$omp end parallel do
     end subroutine
 
 end module
@@ -503,6 +505,8 @@ program Poissonfield
     real(8) :: Ek, EK_scaled, T_scaled, density
     integer :: equili_step,equili_interval_step,total_step,output_interval_step,cur_step_per_rot,total_step_per_rot, &
         cur_step,total_rot_step,output_file
+
+    character(10) :: time0
 
     integer i, j
     real(8) randx, randz, gama
@@ -563,13 +567,15 @@ program Poissonfield
         call scale_v(Ek,T_set,T_scaled)
         f0_p=f_p
         call output(output_file,cur_step,equili_interval_step)
+        !call date_and_time(TIME=time0)
+        !write(*,*) time0, f_p(:,20)
     enddo
 
     write(*,*)'Production begin'
     !!! compute a(t-dt)
     call update_force(0)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        do cur_step=1,total_step
+    do cur_step=1,total_step
         if(mod(cur_step,output_interval_step)==0)then
             write(*,*) cur_step
         endif
@@ -581,9 +587,9 @@ program Poissonfield
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
         !write(*,*) v_p(:,2),f0_p(:,2),f_p(:,2)
         call scale_v(Ek,T_set,T_scaled)
-        v_s = v_s + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+        v_s(3,:) = v_s(3,:) + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         call cal_collision_velocity()
-        v_s = v_s - gama + gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+        v_s(3,:) = v_s(3,:) - gama + gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         call scale_v(Ek,T_set,T_scaled)
         f0_p=f_p
         call output(output_file,cur_step,equili_interval_step)
