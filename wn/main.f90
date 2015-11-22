@@ -1,6 +1,8 @@
 !DIR$ ATTRIBUTES FORCEINLINE :: FENE, LJ, BEND, inbox, scale_v
 module parameters
-    !use ifport
+#ifdef __INTEL_COMPILER
+    use ifport
+#endif
     implicit none
     ! 下标约定: p - polymer, s - solution, b - boundary
 
@@ -241,7 +243,7 @@ contains
         call FENE(f_p(:,1),U,x_p(:,1)-x_p(:,2))
         call FENE(f_p(:,n_p),U,x_p(:,n_p)-x_p(:,n_p-1))
         !write(*,*) 'force0',f_p(:,1)
-        !$omp parallel do private(j,temp) reduction(+:U,f_p)
+        !$omp parallel do private(j) reduction(+:U,f_p)
         do i=1,n_p
             if (i>1 .and. i<n_p) then
                 ! UFENE(r) force
@@ -264,12 +266,13 @@ contains
 
         call periodic_p()
 
+        !$omp parallel do private(j) reduction(+:U,f_p)
         do i=1,n_p
             do j=1,n_b
                 call LJ(f_p(:,i),U,x_p(:,i)-x_b(:,j))
             enddo
-
         enddo
+        !$omp end parallel do
 
         if (mode==0) then
             f0_p=f_p
