@@ -1,4 +1,4 @@
-!DIR$ ATTRIBUTES FORCEINLINE :: FENE, LJ, BEND, inbox, scale_v
+
 module parameters
 #ifdef __INTEL_COMPILER
     use ifport
@@ -16,10 +16,10 @@ module parameters
     real(8), parameter :: kB = 1.38064852d-23
     real(8), parameter :: pi = 3.141592653589793238462643383279
 
-    real(8), parameter :: time_step_p=1d-3, time_step_s=time_step_p, mass_p=1, mass_s=1, T_set=1, v_gradient=0.2
+    real(8), parameter :: time_step_p=1d-4, time_step_s=time_step_p, mass_p=1, mass_s=1, T_set=1, v_gradient=0.2
 
     ! polymer 位置 速度 力 上一次力
-    real(8), dimension(3,n_p) :: x_p, v_p, f_p, f0_p
+    real(8), dimension(3,n_p) :: x_p, v_p, f_p, f0_p, x0_p
     ! solution
     real(8), allocatable, dimension(:,:) :: x_s, v_s, f_s, x0_s
     ! boundaaries, 1~nb-up, nb+1~2nb-down
@@ -32,6 +32,8 @@ module parameters
     real(8), parameter::sigma=1, epson=1, radius=4
 
     real(8), parameter::density_s=3
+
+    real(8) U
 
 contains
 
@@ -215,26 +217,28 @@ contains
 
         r=norm2(rx)
         if(r/=0 .and. r<=LJ_rc)then
-            temp=48d0*epson*((sigma/r)**12)/(r**2)
+            temp=24d0*epson*(2d0*(sigma/r)**12-(sigma/r)**6)/(r**2)
             f=f+rx*temp
-            U=U+4*epson*(sigma/r)**12
+            U=U+4*epson*((sigma/r)**12-(sigma/r)**6)
         endif
     end subroutine
 
     subroutine BEND(f,U,rx1,rx2)
         implicit none
-        real(8) f(3), U, rx1(3), rx2(3)
-        real(8), parameter :: BEND_b = 0
-
-        f=f+BEND_b*(rx1-rx2)
-        U=U-BEND_b*dot_product(rx1,rx2)
+        real(8) f(3), U, rx1(3), rx2(3), r1, r2, c
+        real(8), parameter :: BEND_b = 500
+        r1=norm2(rx1)
+        r2=norm2(rx2)
+        c=dot_product(rx1,rx2)/r1/r2
+        f=f-BEND_b*((rx1+rx2)/(r1*r2)-c*rx1/r1/r1-c*rx2/r2/r2)
+        U=U+BEND_b*c+BEND_b
     end subroutine
 
     subroutine update_force(mode)
         !    use parameters, only : x_p, f_p, n_p,f0_p
         implicit none
         integer mode, i, j
-        real(8) U, temp(3)
+        real(8) temp(3)
         call connect_z()
         f_p=0
         U=0
@@ -250,7 +254,7 @@ contains
                 call FENE(f_p(:,i),U,x_p(:,i)-x_p(:,i+1))
                 call FENE(f_p(:,i),U,x_p(:,i)-x_p(:,i-1))
                 ! bend energy
-                call BEND(f_p(:,i),U,x_p(:,i+1)-x_p(:,i),x_p(:,i)-x_p(:,i-1))
+                call BEND(f_p(:,i),U,x_p(:,i)-x_p(:,i-1),x_p(:,i)-x_p(:,i+1))
             endif
             ! ULJ(r) force
 
@@ -297,15 +301,22 @@ contains
         integer ix,iy,iz,k,count_p,count_s,i
         real(8) momentum(3), matrix(3,3), l(3), fai, theta
         real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
-        real(8) v_aver_p(3), v_aver_s(3), v_aver(3), temp(3)
+        real(8) v_aver_p(3), v_aver_s(3), v_aver(3), temp(3), randz
         logical mask_p(n_p), mask_s(n_s)
         ! calculate velocity of all particles in each cell
-        k=0
+
+        randz=(rand()-0.5)*box_size_unit
+        x0_p(1:2,:)=x_p(1:2,:)
+        x0_s(1:2,:)=x_s(1:2,:)
+        x0_p(3,:)=x_p(3,:)+randz
+        x0_s(3,:)=x_s(3,:)+randz
+        x0_p(3,:)=x0_p(3,:)-n_cell_z*nint((x0_p(3,:))/n_cell_z)
+        x0_s(3,:)=x0_s(3,:)-n_cell_z*nint((x0_s(3,:))/n_cell_z)
+
+        !$omp parallel do private(iy,iz,count_p,count_s,i,momentum,matrix,l,fai,theta,v_aver_p,v_aver_s,v_aver,temp,mask_p,mask_s)
         do ix=1,n_cell_x
             do iy=1,n_cell_y
                 do iz=1,n_cell_z
-
-                    k=k+1
 
                     fai=2.0*pi*rand(0)
                     theta=2.0*rand(0)-1
@@ -332,7 +343,7 @@ contains
                     v_aver_p=0d0
                     mask_p=.false.
                     do i=1,n_p
-                        if(inbox(x_p(:,i),ix,iy,iz))then
+                        if(inbox(x0_p(:,i),ix,iy,iz))then
                             momentum = momentum + v_p(:,i)*mass_p
                             count_p=count_p+1
                             mask_p(i)=.true.
@@ -344,7 +355,7 @@ contains
                     v_aver_s=0d0
                     mask_s=.false.
                     do i=1,n_s
-                        if(inbox(x_s(:,i),ix,iy,iz))then
+                        if(inbox(x0_s(:,i),ix,iy,iz))then
                             momentum = momentum + v_s(:,i)*mass_s
                             count_s=count_s+1
                             mask_s(i)=.true.
@@ -375,9 +386,11 @@ contains
                             v_s(3,i)=v_aver(3) + matrix(3,1)*temp(1) + matrix(3,2)*temp(2) + matrix(3,3)*temp(3)
                         endif
                     enddo
+
                 enddo
             enddo
         enddo
+        !$omp end parallel do
     end subroutine
 
     !!!!以下是Isokinetics thermostat，可以试一下Berendsen thermostat
@@ -388,11 +401,12 @@ contains
         real(8) v, Ek,T, scalar, Ek1, T_out, T1
 
 
-        do i=1,3
-            v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
-            v_p(i,:) = v_p(i,:)-v
-            v_s(i,:) = v_s(i,:)-v
-        enddo
+        !do i=1,3
+            !v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
+            !v_p(i,:) = v_p(i,:)-v
+            !v_s(i,:) = v_s(i,:)-v
+        !enddo
+        !write(*,*)v
 
         Ek1=0.5*(mass_p*sum(v_p**2)+mass_s*sum(v_s**2))
         T1=Ek1/(Ek_fac*(n_p+n_s))
@@ -434,8 +448,6 @@ contains
     subroutine output_U(energy_file,cur_step,step)
         implicit none
         integer cur_step, step, energy_file
-        real(8) U
-        energy_file=13
         if(mod(cur_step,step)==0)then
             write(energy_file,*) cur_step,U
         endif
@@ -446,7 +458,7 @@ contains
         integer i
         real(8), dimension(2):: x0,x1,v0,v1,xc,xm
         real(8) a,b,c,t,delta,norm_rest,s,det,norm_cs
-
+!$omp parallel do private(x0,x1,v0,v1,xc,xm,a,b,c,t,delta,norm_rest,det,norm_cs)
         do i=1,n_s
             ! 越界则回弹
             if (x_s(1,i)**2+x_s(2,i)**2>=radius**2) then
@@ -490,7 +502,7 @@ contains
                 !write(*,*) x1
             endif
         enddo
-
+!$omp end parallel do
     end subroutine
 
 end module
@@ -500,26 +512,33 @@ program Poissonfield
     use parameters
     implicit none
     real(8) :: Ek, EK_scaled, T_scaled, density
-    integer :: equili_step,equili_interval_step,total_step,output_interval_step, &
-        cur_step,output_file
+    integer :: equili_step,equili_interval_step,total_step,output_interval_step,cur_step_per_rot,total_step_per_rot, &
+        cur_step,total_rot_step,output_file,energy_file,production_file
+
+    character(10) :: time0
 
     integer i, j
     real(8) randx, randz, gama
-    gama=1
-    output_file=12
 
-    equili_step=50000
+    output_file=12
+    energy_file=13
+    production_file=14
+    gama=1
+    equili_step=500000
     equili_interval_step=1000
     total_step=3000000
-    output_interval_step=1000
+    output_interval_step=100
+    total_rot_step=500000
+    total_step_per_rot=200
 
     box_size = [n_cell_x, n_cell_y, n_cell_z]
     half_box_size(3) = n_cell_z/2d0
-    box_size_unit=(1/density)**(1d0/3)
+    box_size_unit=1.0
     half_box_size_unit=box_size_unit/2
 
     !!!读链的大小 改成1个文件
     open(output_file,file='dump.cylinder.lammpstrj')
+    open(energy_file,file='energy.out')
     call init()
     call output(output_file,0,equili_interval_step)
 
@@ -544,9 +563,11 @@ program Poissonfield
     call update_force(0)
 
     write(*,*)'Equilibrium begin:'
+    write(*,*) '       step           U'
+    write(*,*) '---------------------------------'
     do cur_step=1,equili_step
         if(mod(cur_step,equili_interval_step)==0)then
-            write(*,*) cur_step
+            write(*,*) cur_step, U
         endif
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
         x_s = x_s + v_s*time_step_s
@@ -554,19 +575,23 @@ program Poissonfield
         call periodic_s()
         call update_force(1)
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
-        !write(*,*) v_p(:,2),f0_p(:,2),f_p(:,2)
         call scale_v(Ek,T_set,T_scaled)
+
         call cal_collision_velocity()
         call scale_v(Ek,T_set,T_scaled)
         f0_p=f_p
         call output(output_file,cur_step,equili_interval_step)
+        call output_U(energy_file,cur_step,equili_interval_step)
+!        call date_and_time(TIME=time0)
+!        write(*,*) time0, f_p(:,20)
     enddo
 
     write(*,*)'Production begin'
+        open(production_file,file='dump.production.lammpstrj')
     !!! compute a(t-dt)
     call update_force(0)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        do cur_step=1,total_step
+    do cur_step=1,total_step
         if(mod(cur_step,output_interval_step)==0)then
             write(*,*) cur_step
         endif
@@ -580,19 +605,15 @@ program Poissonfield
         call scale_v(Ek,T_set,T_scaled)
         v_s(3,:) = v_s(3,:) + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         call cal_collision_velocity()
-        v_p(3,:) = v_p(3,:) - gama + gama*(x_p(1,:)**2+x_p(2,:)**2)/radius**2
         v_s(3,:) = v_s(3,:) - gama + gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         call scale_v(Ek,T_set,T_scaled)
-        v_p(3,:) = v_p(3,:) + gama - gama*(x_p(1,:)**2+x_p(2,:)**2)/radius**2
         f0_p=f_p
-        call output(output_file,cur_step,output_interval_step)
+        call output(production_file,cur_step,output_interval_step)
     enddo
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !        randx=rand(0)
 !        randz=rand(0)
-!        x_p(1,:)=x_p(1,:)+(randx-0.5)*box_size_unit
-!        x_p(3,:)=x_p(3,:)+(randz-0.5)*box_size_unit
 !
 !                x_s(1,:)=x_s(1,:)+ppx
 !                x_s(3,:)=x_s(3,:)+ppz
