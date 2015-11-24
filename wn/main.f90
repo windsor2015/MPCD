@@ -7,7 +7,7 @@ module parameters
     ! 下标约定: p - polymer, s - solution, b - boundary
 
     !结构
-    integer, parameter :: n_p=40, n_cell_x=30, n_cell_y=30, n_cell_z=20
+    integer, parameter :: n_p=40, n_cell_x=12, n_cell_y=12, n_cell_z=20
 
     integer n_b, n_s
 
@@ -394,7 +394,7 @@ contains
     end subroutine
 
     !!!!以下是Isokinetics thermostat，可以试一下Berendsen thermostat
-    subroutine scale_v(Ek,T,T_out)
+     subroutine scale_v(Ek,T,T_out)
         implicit none
         integer i
         real(8), parameter :: Ek_fac = 1.5d0
@@ -417,6 +417,52 @@ contains
         T_out=Ek/(Ek_fac*(n_p+n_s))
 
     end subroutine
+
+!    subroutine scale_v_p(Ek,T,T_out)
+!        implicit none
+!        integer i
+!        real(8), parameter :: Ek_fac = 1.5d0
+!        real(8) v, Ek,T, scalar, Ek1, T_out, T1
+!
+!
+!        !do i=1,3
+!            !v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
+!            !v_p(i,:) = v_p(i,:)-v
+!            !v_s(i,:) = v_s(i,:)-v
+!        !enddo
+!        !write(*,*)v
+!
+!        Ek1=0.5*mass_p*sum(v_p**2)
+!        T1=Ek1/(Ek_fac*n_p)
+!        scalar=sqrt(T/T1)
+!        v_p=v_p*scalar
+!        Ek=0.5*mass_p*sum(v_p**2)
+!        T_out=Ek/(Ek_fac*n_p)
+!
+!    end subroutine
+!
+!        subroutine scale_v_s(Ek,T,T_out)
+!        implicit none
+!        integer i
+!        real(8), parameter :: Ek_fac = 1.5d0
+!        real(8) v, Ek,T, scalar, Ek1, T_out, T1
+!
+!
+!        !do i=1,3
+!            !v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
+!            !v_p(i,:) = v_p(i,:)-v
+!            !v_s(i,:) = v_s(i,:)-v
+!        !enddo
+!        !write(*,*)v
+!
+!        Ek1=0.5*mass_s*sum(v_s**2)
+!        T1=Ek1/(Ek_fac*n_s)
+!        scalar=sqrt(T/T1)
+!        v_s=v_s*scalar
+!        Ek=0.5*mass_s*sum(v_s**2)
+!        T_out=Ek/(Ek_fac*n_s)
+!
+!    end subroutine
 
     subroutine output(output_file,cur_step,step)
         implicit none
@@ -492,14 +538,11 @@ contains
                 x1(2)=-(s*xc(1)+c*xc(2))
 
                 v1=x1*norm2(v0)/radius
-
                 x1=xc+x1*norm_rest/radius
-
-
 
                 x_s(1:2,i)=x1
                 v_s(1:2,i)=v1
-                !write(*,*) x1
+
             endif
         enddo
 !$omp end parallel do
@@ -511,7 +554,7 @@ end module
 program Poissonfield
     use parameters
     implicit none
-    real(8) :: Ek, EK_scaled, T_scaled, density
+    real(8) :: Ek, EK_scaled,T_scaled,density
     integer :: equili_step,equili_interval_step,total_step,output_interval_step,cur_step_per_rot,total_step_per_rot, &
         cur_step,total_rot_step,output_file,energy_file,production_file
 
@@ -548,20 +591,20 @@ program Poissonfield
     call random_number(v_s)
     v_p=v_p-0.5
     v_s=v_s-0.5
-    call scale_v(Ek_scaled, T_set, T_scaled)
+    call scale_v(EK_scaled,T_set,T_scaled)
+!    call scale_v_p(Ek_scaled_p, T_set, T_scaled_p)
+!    call scale_v_s(Ek_scaled_s, T_set, T_scaled_s)
     write(*,*) 'Polymer: '
     write(*,*) 'Initial scaled kinetics Ek_scaled: ',Ek_scaled
     write(*,*) 'Initial setted temperature T_set: ',T_set
     write(*,*) 'Initial scaled temperature T_scaled: ',T_scaled
-
-    write(*,*) 'Solution: '
-    write(*,*) 'Initial scaled kinetics Ek_scaled=',Ek_scaled
-    write(*,*) 'Initial setted temperature T_set=',T_set
-    write(*,*) 'Initial scaled temperature T_scaled=',T_scaled
-
+!    write(*,*) 'Solution: '
+!    write(*,*) 'Initial scaled kinetics Ek_scaled: ',Ek_scaled
+!    write(*,*) 'Initial setted temperature T_set: ',T_set
+!    write(*,*) 'Initial scaled temperature T_scaled: ',T_scaled
     ! 没有外场时，polymer和solution达到平衡
     call update_force(0)
-
+    write(*,*) ''
     write(*,*)'Equilibrium begin:'
     write(*,*) '       step           U'
     write(*,*) '---------------------------------'
@@ -575,10 +618,11 @@ program Poissonfield
         call periodic_s()
         call update_force(1)
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
-        call scale_v(Ek,T_set,T_scaled)
-
+        call scale_v(EK_scaled,T_set,T_scaled)
         call cal_collision_velocity()
-        call scale_v(Ek,T_set,T_scaled)
+        !call scale_v(EK_scaled,T_set,T_scaled)
+       ! call scale_v_p(EK_scaled_p,T_set,T_scaled_p)
+       ! call scale_v_s(EK_scaled_s,T_set,T_scaled_s)
         f0_p=f_p
         call output(output_file,cur_step,equili_interval_step)
         call output_U(energy_file,cur_step,equili_interval_step)
@@ -607,23 +651,11 @@ program Poissonfield
         call cal_collision_velocity()
         v_s(3,:) = v_s(3,:) - gama + gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         call scale_v(Ek,T_set,T_scaled)
+        call scale_v(Ek,T_set,T_scaled)
         f0_p=f_p
         call output(production_file,cur_step,output_interval_step)
     enddo
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!        randx=rand(0)
-!        randz=rand(0)
-!
-!                x_s(1,:)=x_s(1,:)+ppx
-!                x_s(3,:)=x_s(3,:)+ppz
-!
-!                x_s(1,:)=x_s(1,:)+(randx-0.5)*box_size_unit
-!                x_s(3,:)=x_s(3,:)+(randz-0.5)*box_size_unit
-!
-!                x_s(1,:)=x_s(1,:)-box_size(1)*nint((x_s(1,:)-(ppx+half_box_size(1)))/box_size(1))
-!                x_s(3,:)=x_s(3,:)-box_size(3)*nint((x_s(3,:)-(ppz+half_box_size(3)))/box_size(3))
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 end program Poissonfield
