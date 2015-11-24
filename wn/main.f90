@@ -16,7 +16,7 @@ module parameters
     real(8), parameter :: kB = 1.38064852d-23
     real(8), parameter :: pi = 3.141592653589793238462643383279
 
-    real(8), parameter :: time_step_p=1d-4, time_step_s=time_step_p, mass_p=1, mass_s=1, T_set=1, v_gradient=0.2
+    real(8), parameter :: time_step_p=1d-3, time_step_s=1d-3, mass_p=1, mass_s=1, T_set=1, v_gradient=0.2
 
     ! polymer 位置 速度 力 上一次力
     real(8), dimension(3,n_p) :: x_p, v_p, f_p, f0_p, x0_p
@@ -33,7 +33,15 @@ module parameters
 
     real(8), parameter::density_s=3
 
-    real(8) U
+    real(8) U, U_LJ, U_FENE, U_BEND, U_WALL
+
+    ! pointer - 每个格子中的粒子编号
+    ! count - 每个格子中的粒子计数，1 - p，2 - s
+    ! momentum - 每个格子中的总动量
+    integer, dimension(0:n_cell_x, 0:n_cell_y, 0:n_cell_z, n_p) :: pointer_cell_p
+    integer, dimension(0:n_cell_x, 0:n_cell_y, 0:n_cell_z, 100) :: pointer_cell_s
+    integer, dimension(0:n_cell_x, 0:n_cell_y, 0:n_cell_z) :: count_cell_p, count_cell_s
+    real(8), dimension(3,0:n_cell_x, 0:n_cell_y, 0:n_cell_z) :: momentum_cell
 
 contains
 
@@ -198,9 +206,10 @@ contains
     subroutine FENE(f,U,rx)
         implicit none
         real(8) f(3), U, rx(3)
-        real(8), parameter :: FENE_rc=1.5*sigma, FENE_k=30
+        real(8), parameter :: FENE_rc=1.5*sigma, FENE_k=100
         real(8) temp,r
 
+        rx(3)=rx(3)-n_cell_z*nint(rx(3)/n_cell_z)
         r=norm2(rx)
         if(r/=0 .and. r<=FENE_rc) then
             temp=(FENE_k*FENE_rc**2)/(FENE_rc**2-r**2)
@@ -215,6 +224,7 @@ contains
         real(8), parameter :: LJ_rc=sigma*2d0**(1d0/6d0)
         real(8) temp,r
 
+        rx(3)=rx(3)-n_cell_z*nint(rx(3)/n_cell_z)
         r=norm2(rx)
         if(r/=0 .and. r<=LJ_rc)then
             temp=24d0*epson*(2d0*(sigma/r)**12-(sigma/r)**6)/(r**2)
@@ -225,13 +235,21 @@ contains
 
     subroutine BEND(f,U,rx1,rx2)
         implicit none
-        real(8) f(3), U, rx1(3), rx2(3), r1, r2, c
-        real(8), parameter :: BEND_b = 500
+        real(8) f(3), U, rx1(3), rx2(3), c, r1, r2
+        real(8), parameter :: BEND_b = 50
+
+        rx1(3)=rx1(3)-n_cell_z*nint(rx1(3)/n_cell_z)
+        rx2(3)=rx2(3)-n_cell_z*nint(rx2(3)/n_cell_z)
+
         r1=norm2(rx1)
         r2=norm2(rx2)
         c=dot_product(rx1,rx2)/r1/r2
         f=f-BEND_b*((rx1+rx2)/(r1*r2)-c*rx1/r1/r1-c*rx2/r2/r2)
-        U=U+BEND_b*c+BEND_b
+        U=U+BEND_b*(1+c)
+
+        !c=dot_product(rx1,rx2)
+        !f=f+BEND_b*(rx1-rx2)
+        !U=U-BEND_b*c
     end subroutine
 
     subroutine update_force(mode)
@@ -239,45 +257,52 @@ contains
         implicit none
         integer mode, i, j
         real(8) temp(3)
-        call connect_z()
+
         f_p=0
         U=0
+        U_BEND=0
+        U_FENE=0
+        U_LJ=0
+        U_WALL=0
         temp=0
+        !call connect_z()
         ! 链两端
-        call FENE(f_p(:,1),U,x_p(:,1)-x_p(:,2))
-        call FENE(f_p(:,n_p),U,x_p(:,n_p)-x_p(:,n_p-1))
-        !write(*,*) 'force0',f_p(:,1)
-        !$omp parallel do private(j) reduction(+:U,f_p)
+        call FENE(f_p(:,1),U_FENE,x_p(:,1)-x_p(:,2))
+        call FENE(f_p(:,n_p),U_FENE,x_p(:,n_p)-x_p(:,n_p-1))
+        !if (u>10000) write(*,*) 'force0',U
+
+        !$omp parallel do private(j) reduction(+:U_FENE,U_BEND,f_p)
         do i=1,n_p
             if (i>1 .and. i<n_p) then
                 ! UFENE(r) force
-                call FENE(f_p(:,i),U,x_p(:,i)-x_p(:,i+1))
-                call FENE(f_p(:,i),U,x_p(:,i)-x_p(:,i-1))
-                ! bend energy
-                call BEND(f_p(:,i),U,x_p(:,i)-x_p(:,i-1),x_p(:,i)-x_p(:,i+1))
-            endif
-            ! ULJ(r) force
+                call FENE(f_p(:,i),U_FENE,x_p(:,i)-x_p(:,i+1))
+                call FENE(f_p(:,i),U_FENE,x_p(:,i)-x_p(:,i-1))
 
+                ! bend energy
+                call BEND(f_p(:,i),U_BEND,-x_p(:,i+1)+x_p(:,i),x_p(:,i)-x_p(:,i-1))
+            endif
+
+        enddo
+        !$omp end parallel do
+        !if (u>10000) write(*,*) 'force1',U
+        !call periodic_p()
+
+        !$omp parallel do private(j) reduction(+:U_LJ,f_p,U_WALL)
+        !ULJ(r) force
+        do i=1,n_p
             do j=1,n_p
                 if (j/=i) then
-                    call LJ(f_p(:,i),U,x_p(:,i)-x_p(:,j))
+                    call LJ(f_p(:,i),U_LJ,x_p(:,i)-x_p(:,j))
                 endif
             enddo
 
-        enddo
-        !$omp end parallel do
-        !write(*,*) 'force1',f_p(:,1)
-
-        call periodic_p()
-
-        !$omp parallel do private(j) reduction(+:U,f_p)
-        do i=1,n_p
             do j=1,n_b
-                call LJ(f_p(:,i),U,x_p(:,i)-x_b(:,j))
+                call LJ(f_p(:,i),U_WALL,x_p(:,i)-x_b(:,j))
             enddo
         enddo
         !$omp end parallel do
-
+        U=U_FENE+U_BEND+U_LJ+U_WALL
+!if (u>10000) write(*,*) 'force2',U
         if (mode==0) then
             f0_p=f_p
         endif
@@ -295,6 +320,24 @@ contains
             .and. temp(3)>=0 .and. temp(3)<1
     end function
 
+    subroutine get_cell_xyz(r,x,y,z,s)
+        implicit none
+        real(8) r(3)
+        integer x,y,z
+        logical s
+
+        x=floor(r(1)+n_cell_x/2d0)
+        y=floor(r(2)+n_cell_y/2d0)
+        z=floor(r(3)+n_cell_z/2d0)
+
+        s= x>=0 .and. x<=n_cell_x &
+        .and. y>=0 .and. y<=n_cell_y &
+        .and. z>=0 .and. z<=n_cell_z
+
+        !if (.not.s) write(*,*) r
+
+    end subroutine
+
     subroutine cal_collision_velocity()
         !    use parameters
         implicit none
@@ -302,9 +345,14 @@ contains
         real(8) momentum(3), matrix(3,3), l(3), fai, theta
         real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
         real(8) v_aver_p(3), v_aver_s(3), v_aver(3), temp(3), randz
-        logical mask_p(n_p), mask_s(n_s)
-        ! calculate velocity of all particles in each cell
+        logical mask_p(n_p), mask_s(n_s), check
 
+        pointer_cell_p=0
+        pointer_cell_s=0
+        count_cell_p=0
+        count_cell_s=0
+        momentum_cell=0d0
+        ! calculate velocity of all particles in each cell
         randz=(rand()-0.5)*box_size_unit
         x0_p(1:2,:)=x_p(1:2,:)
         x0_s(1:2,:)=x_s(1:2,:)
@@ -312,11 +360,31 @@ contains
         x0_s(3,:)=x_s(3,:)+randz
         x0_p(3,:)=x0_p(3,:)-n_cell_z*nint((x0_p(3,:))/n_cell_z)
         x0_s(3,:)=x0_s(3,:)-n_cell_z*nint((x0_s(3,:))/n_cell_z)
+        !$omp parallel do private(ix,iy,iz,check)
+        do i=1,n_p
+            call get_cell_xyz(x_p(:,i),ix,iy,iz,check)
+            if (.not.check) cycle
+            count_cell_p(ix,iy,iz)=count_cell_p(ix,iy,iz)+1
+            pointer_cell_p(ix,iy,iz,count_cell_p(ix,iy,iz))=i
+            momentum_cell(:,ix,iy,iz)=momentum_cell(:,ix,iy,iz)+mass_p*v_p(:,i)
+        enddo
+        !$omp end parallel do
+        !$omp parallel do private(ix,iy,iz,check)
+        do i=1,n_s
+            call get_cell_xyz(x_s(:,i),ix,iy,iz,check)
+            if (check) then
+            count_cell_s(ix,iy,iz)=count_cell_s(ix,iy,iz)+1
+            pointer_cell_s(ix,iy,iz,count_cell_s(ix,iy,iz))=i
+            momentum_cell(:,ix,iy,iz)=momentum_cell(:,ix,iy,iz)+mass_s*v_s(:,i)
+            endif
+        enddo
+        !$omp end parallel do
+        !$omp parallel do private(iy,iz,i,matrix,l,fai,theta,v_aver,temp,k)
+        do ix=0,n_cell_x
+            do iy=0,n_cell_y
+                do iz=0,n_cell_z
 
-        !$omp parallel do private(iy,iz,count_p,count_s,i,momentum,matrix,l,fai,theta,v_aver_p,v_aver_s,v_aver,temp,mask_p,mask_s)
-        do ix=1,n_cell_x
-            do iy=1,n_cell_y
-                do iz=1,n_cell_z
+                    if (count_cell_p(ix,iy,iz)+count_cell_s(ix,iy,iz)==0) cycle
 
                     fai=2.0*pi*rand(0)
                     theta=2.0*rand(0)-1
@@ -337,56 +405,21 @@ contains
                     matrix(3,2) = l(3)*l(2)*(1-c) + s*l(1)
                     matrix(3,3) = l(3)*l(3)*(1-c) + c
 
-                    momentum=0
-
-                    count_p=0
-                    v_aver_p=0d0
-                    mask_p=.false.
-                    do i=1,n_p
-                        if(inbox(x0_p(:,i),ix,iy,iz))then
-                            momentum = momentum + v_p(:,i)*mass_p
-                            count_p=count_p+1
-                            mask_p(i)=.true.
-                            v_aver_p=v_aver_p+v_p(:,i)
-                        endif
+                    v_aver=momentum_cell(:,ix,iy,iz)/(mass_p*count_cell_p(ix,iy,iz)+mass_s*count_cell_s(ix,iy,iz))
+                    do i=1,count_cell_p(ix,iy,iz)
+                        k=pointer_cell_p(ix,iy,iz,i)
+                        temp=v_p(:,k)-v_aver
+                        v_p(1,k)=v_aver(1) + matrix(1,1)*temp(1) + matrix(1,2)*temp(2) + matrix(1,3)*temp(3)
+                        v_p(2,k)=v_aver(2) + matrix(2,1)*temp(1) + matrix(2,2)*temp(2) + matrix(2,3)*temp(3)
+                        v_p(3,k)=v_aver(3) + matrix(3,1)*temp(1) + matrix(3,2)*temp(2) + matrix(3,3)*temp(3)
                     enddo
-                    !write(*,*)ix,iy,iz,count_p
-                    count_s=0
-                    v_aver_s=0d0
-                    mask_s=.false.
-                    do i=1,n_s
-                        if(inbox(x0_s(:,i),ix,iy,iz))then
-                            momentum = momentum + v_s(:,i)*mass_s
-                            count_s=count_s+1
-                            mask_s(i)=.true.
-                            v_aver_s=v_aver_s+v_s(:,i)
-                        endif
+                    do i=1,count_cell_s(ix,iy,iz)
+                        k=pointer_cell_s(ix,iy,iz,i)
+                        temp=v_s(:,k)-v_aver
+                        v_s(1,k)=v_aver(1) + matrix(1,1)*temp(1) + matrix(1,2)*temp(2) + matrix(1,3)*temp(3)
+                        v_s(2,k)=v_aver(2) + matrix(2,1)*temp(1) + matrix(2,2)*temp(2) + matrix(2,3)*temp(3)
+                        v_s(3,k)=v_aver(3) + matrix(3,1)*temp(1) + matrix(3,2)*temp(2) + matrix(3,3)*temp(3)
                     enddo
-                    !write(*,*)ix,iy,iz,count_s
-                    if((count_s==0).and.(count_p==0))then
-                        v_aver=0
-                    else
-                        v_aver=momentum/(count_p*mass_p+count_s*mass_s)
-                    endif
-
-                    do i=1,n_p
-                        if(mask_p(i)) then
-                            temp=v_p(:,i)-v_aver
-                            v_p(1,i)=v_aver(1) + matrix(1,1)*temp(1) + matrix(1,2)*temp(2) + matrix(1,3)*temp(3)
-                            v_p(2,i)=v_aver(2) + matrix(2,1)*temp(1) + matrix(2,2)*temp(2) + matrix(2,3)*temp(3)
-                            v_p(3,i)=v_aver(3) + matrix(3,1)*temp(1) + matrix(3,2)*temp(2) + matrix(3,3)*temp(3)
-                        endif
-                    enddo
-
-                    do i=1,n_s
-                        if(mask_s(i)) then
-                            temp=v_s(:,i)-v_aver
-                            v_s(1,i)=v_aver(1) + matrix(1,1)*temp(1) + matrix(1,2)*temp(2) + matrix(1,3)*temp(3)
-                            v_s(2,i)=v_aver(2) + matrix(2,1)*temp(1) + matrix(2,2)*temp(2) + matrix(2,3)*temp(3)
-                            v_s(3,i)=v_aver(3) + matrix(3,1)*temp(1) + matrix(3,2)*temp(2) + matrix(3,3)*temp(3)
-                        endif
-                    enddo
-
                 enddo
             enddo
         enddo
@@ -418,28 +451,28 @@ contains
 
     end subroutine
 
-!    subroutine scale_v_p(Ek,T,T_out)
-!        implicit none
-!        integer i
-!        real(8), parameter :: Ek_fac = 1.5d0
-!        real(8) v, Ek,T, scalar, Ek1, T_out, T1
-!
-!
-!        !do i=1,3
-!            !v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
-!            !v_p(i,:) = v_p(i,:)-v
-!            !v_s(i,:) = v_s(i,:)-v
-!        !enddo
-!        !write(*,*)v
-!
-!        Ek1=0.5*mass_p*sum(v_p**2)
-!        T1=Ek1/(Ek_fac*n_p)
-!        scalar=sqrt(T/T1)
-!        v_p=v_p*scalar
-!        Ek=0.5*mass_p*sum(v_p**2)
-!        T_out=Ek/(Ek_fac*n_p)
-!
-!    end subroutine
+    subroutine scale_v_p(Ek,T,T_out)
+        implicit none
+        integer i
+        real(8), parameter :: Ek_fac = 1.5d0
+        real(8) v, Ek,T, scalar, Ek1, T_out, T1
+
+
+        !do i=1,3
+            !v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
+            !v_p(i,:) = v_p(i,:)-v
+            !v_s(i,:) = v_s(i,:)-v
+        !enddo
+        !write(*,*)v
+
+        Ek1=0.5*mass_p*sum(v_p**2)
+        T1=Ek1/(Ek_fac*n_p)
+        scalar=sqrt(T/T1)
+        v_p=v_p*scalar
+        Ek=0.5*mass_p*sum(v_p**2)
+        T_out=Ek/(Ek_fac*n_p)
+
+    end subroutine
 !
 !        subroutine scale_v_s(Ek,T,T_out)
 !        implicit none
@@ -554,7 +587,7 @@ end module
 program Poissonfield
     use parameters
     implicit none
-    real(8) :: Ek, EK_scaled,T_scaled,density
+    real(8) :: Ek, EK_scaled,EK_scaled_p,T_scaled,T_scaled_p,density
     integer :: equili_step,equili_interval_step,total_step,output_interval_step,cur_step_per_rot,total_step_per_rot, &
         cur_step,total_rot_step,output_file,energy_file,production_file
 
@@ -594,7 +627,7 @@ program Poissonfield
     call scale_v(EK_scaled,T_set,T_scaled)
 !    call scale_v_p(Ek_scaled_p, T_set, T_scaled_p)
 !    call scale_v_s(Ek_scaled_s, T_set, T_scaled_s)
-    write(*,*) 'Polymer: '
+    write(*,*) ''
     write(*,*) 'Initial scaled kinetics Ek_scaled: ',Ek_scaled
     write(*,*) 'Initial setted temperature T_set: ',T_set
     write(*,*) 'Initial scaled temperature T_scaled: ',T_scaled
@@ -606,24 +639,33 @@ program Poissonfield
     call update_force(0)
     write(*,*) ''
     write(*,*)'Equilibrium begin:'
-    write(*,*) '       step           U'
-    write(*,*) '---------------------------------'
+    write(*,'(A7,5A12)') 'step', 'BEND','FENE','LJ','WALL', 'total'
+    write(*,*) '--------------------------------------------------------------------'
+    write(*,'(I7,5F12.3)') 0, U_BEND, U_FENE, U_LJ, U_WALL,U
     do cur_step=1,equili_step
         if(mod(cur_step,equili_interval_step)==0)then
-            write(*,*) cur_step, U
+            write(*,'(I7,5F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U_WALL,U
         endif
-        x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
+        !if (U>10000) write(*,*) cur_step,U
+! solvent
         x_s = x_s + v_s*time_step_s
         call bounce_back_s()
         call periodic_s()
+        !do i=1,10
+        ! polymer chain
+        x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
+        call periodic_p()
         call update_force(1)
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
-        call scale_v(EK_scaled,T_set,T_scaled)
-        call cal_collision_velocity()
         !call scale_v(EK_scaled,T_set,T_scaled)
-       ! call scale_v_p(EK_scaled_p,T_set,T_scaled_p)
-       ! call scale_v_s(EK_scaled_s,T_set,T_scaled_s)
         f0_p=f_p
+        !enddo
+        !call scale_v(EK_scaled,T_set,T_scaled)
+        call cal_collision_velocity()
+        if (mod(cur_step,10)==0)call scale_v(EK_scaled,T_set,T_scaled)
+      ! call scale_v_p(EK_scaled_p,T_set,T_scaled_p)
+       ! call scale_v_s(EK_scaled_s,T_set,T_scaled_s)
+
         call output(output_file,cur_step,equili_interval_step)
         call output_U(energy_file,cur_step,equili_interval_step)
 !        call date_and_time(TIME=time0)
@@ -635,9 +677,11 @@ program Poissonfield
     !!! compute a(t-dt)
     call update_force(0)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    write(*,'(A7,5A12)') 'step', 'BEND','FENE','LJ','WALL', 'total'
+    write(*,*) '--------------------------------------------------------------------'
     do cur_step=1,total_step
         if(mod(cur_step,output_interval_step)==0)then
-            write(*,*) cur_step
+            write(*,'(I7,5F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U_WALL,U
         endif
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
         x_s = x_s + v_s*time_step_s
