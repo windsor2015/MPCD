@@ -7,7 +7,7 @@ module parameters
     ! 下标约定: p - polymer, s - solution, b - boundary
 
     !结构
-    integer, parameter :: n_p=40, n_cell_x=12, n_cell_y=12, n_cell_z=20
+    integer, parameter :: n_p=40, n_cell_x=12, n_cell_y=12, n_cell_z=40
 
     integer n_b, n_s
 
@@ -165,7 +165,7 @@ contains
                 enddo
             enddo
         enddo
-        allocate(x_s(3,n_s),v_s(3,n_s),f_s(3,n_s),x0_s(3,n_s))
+        allocate(x_s(3,n_s),v_s(3,n_s),f_s(3,n_s),x0_s(3,n_s),x_s0(3,n_s))
         x_s=temp(:,1:n_s)
         write(*,*)"Solvent particle number: ", n_s
         write(*,*)"Total particle number: ", n_b+n_p+n_s
@@ -599,8 +599,8 @@ program Poissonfield
     output_file=12
     energy_file=13
     production_file=14
-    gama=0.5
-    equili_step=100000
+    gama=0.1
+    equili_step=100000/2
     equili_interval_step=1000
     total_step=3000000
     output_interval_step=100
@@ -643,9 +643,6 @@ program Poissonfield
     write(*,*) '--------------------------------------------------------------------'
     write(*,'(I7,5F12.3)') 0, U_BEND, U_FENE, U_LJ, U_WALL,U
     do cur_step=1,equili_step
-        if(mod(cur_step,equili_interval_step)==0)then
-            write(*,'(I7,5F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U_WALL,U
-        endif
         !if (U>10000) write(*,*) cur_step,U
         ! solvent
         x_s = x_s + v_s*time_step_s
@@ -666,6 +663,10 @@ program Poissonfield
         ! call scale_v_p(EK_scaled_p,T_set,T_scaled_p)
         ! call scale_v_s(EK_scaled_s,T_set,T_scaled_s)
 
+        if(mod(cur_step,equili_interval_step)==0)then
+            write(*,'(I7,5F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U_WALL,U
+        endif
+
         call output(output_file,cur_step,equili_interval_step)
         call output_U(energy_file,cur_step,equili_interval_step)
         !        call date_and_time(TIME=time0)
@@ -679,18 +680,16 @@ program Poissonfield
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     write(*,'(A7,5A12)') 'step', 'BEND','FENE','LJ','WALL', 'total'
     write(*,*) '--------------------------------------------------------------------'
-    v_s(3,:) = v_s(3,:) + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
-    x_s0(1:2,:)=x_s(1:2,:)
-    do cur_step=1,total_step
-        if(mod(cur_step,equili_interval_step)==0)then
-            write(*,'(I7,5F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U_WALL,U
-        endif
 
-        x_s = x_s + v_s*time_step_s
-        v_s(3,:) = v_s(3,:) - gama + gama*(x_s0(1,:)**2+x_s0(2,:)**2)/radius**2
+    do cur_step=1,total_step
+        v_s(3,:) = v_s(3,:) + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         x_s0(1:2,:)=x_s(1:2,:)
+        x_s = x_s + v_s*time_step_s
         call bounce_back_s()
         call periodic_s()
+        !v_s(3,:) = v_s(3,:) - gama + gama*(x_s0(1,:)**2+x_s0(2,:)**2)/radius**2
+        !x_s0(1:2,:)=x_s(1:2,:)
+
         !do i=1,10
         ! polymer chain
         x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
@@ -701,12 +700,17 @@ program Poissonfield
         f0_p=f_p
         !enddo
         !call scale_v(EK_scaled,T_set,T_scaled)
-        v_s(3,:) = v_s(3,:) + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+        !v_s(3,:) = v_s(3,:) + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+if (mod(cur_step,10)==0)call scale_v(EK_scaled,T_set,T_scaled)
         call cal_collision_velocity()
         !v_s(3,:) = v_s(3,:) - gama + gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
-        if (mod(cur_step,10)==0)call scale_v(EK_scaled,T_set,T_scaled)
+
         ! call scale_v_p(EK_scaled_p,T_set,T_scaled_p)
-        ! call scale_v_s(EK_scaled_s,T_set,T_scaled_s)
+        ! call scale_v_s(EK_scaled_s,T_set,T_scaled_s
+
+        if(mod(cur_step,equili_interval_step)==0)then
+            write(*,'(I7,5F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U_WALL,U
+        endif
 
         call output(production_file,cur_step,output_interval_step)
 
