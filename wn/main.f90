@@ -21,7 +21,7 @@ module parameters
     ! polymer 位置 速度 力 上一次力
     real(8), dimension(3,n_p) :: x_p, v_p, f_p, f0_p, x0_p
     ! solution
-    real(8), allocatable, dimension(:,:) :: x_s, v_s, f_s, x0_s
+    real(8), allocatable, dimension(:,:) :: x_s, v_s, f_s, x0_s, x_s0
     ! boundaaries, 1~nb-up, nb+1~2nb-down
     real(8), allocatable, dimension(:,:) :: x_b, v_b, f_b
 
@@ -302,7 +302,7 @@ contains
         enddo
         !$omp end parallel do
         U=U_FENE+U_BEND+U_LJ+U_WALL
-!if (u>10000) write(*,*) 'force2',U
+        !if (u>10000) write(*,*) 'force2',U
         if (mode==0) then
             f0_p=f_p
         endif
@@ -331,8 +331,8 @@ contains
         z=floor(r(3)+n_cell_z/2d0)
 
         s= x>=0 .and. x<=n_cell_x &
-        .and. y>=0 .and. y<=n_cell_y &
-        .and. z>=0 .and. z<=n_cell_z
+            .and. y>=0 .and. y<=n_cell_y &
+            .and. z>=0 .and. z<=n_cell_z
 
         !if (.not.s) write(*,*) r
 
@@ -373,9 +373,9 @@ contains
         do i=1,n_s
             call get_cell_xyz(x_s(:,i),ix,iy,iz,check)
             if (check) then
-            count_cell_s(ix,iy,iz)=count_cell_s(ix,iy,iz)+1
-            pointer_cell_s(ix,iy,iz,count_cell_s(ix,iy,iz))=i
-            momentum_cell(:,ix,iy,iz)=momentum_cell(:,ix,iy,iz)+mass_s*v_s(:,i)
+                count_cell_s(ix,iy,iz)=count_cell_s(ix,iy,iz)+1
+                pointer_cell_s(ix,iy,iz,count_cell_s(ix,iy,iz))=i
+                momentum_cell(:,ix,iy,iz)=momentum_cell(:,ix,iy,iz)+mass_s*v_s(:,i)
             endif
         enddo
         !$omp end parallel do
@@ -427,7 +427,7 @@ contains
     end subroutine
 
     !!!!以下是Isokinetics thermostat，可以试一下Berendsen thermostat
-     subroutine scale_v(Ek,T,T_out)
+    subroutine scale_v(Ek,T,T_out)
         implicit none
         integer i
         real(8), parameter :: Ek_fac = 1.5d0
@@ -435,9 +435,9 @@ contains
 
 
         !do i=1,3
-            !v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
-            !v_p(i,:) = v_p(i,:)-v
-            !v_s(i,:) = v_s(i,:)-v
+        !v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
+        !v_p(i,:) = v_p(i,:)-v
+        !v_s(i,:) = v_s(i,:)-v
         !enddo
         !write(*,*)v
 
@@ -459,9 +459,9 @@ contains
 
 
         !do i=1,3
-            !v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
-            !v_p(i,:) = v_p(i,:)-v
-            !v_s(i,:) = v_s(i,:)-v
+        !v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
+        !v_p(i,:) = v_p(i,:)-v
+        !v_s(i,:) = v_s(i,:)-v
         !enddo
         !write(*,*)v
 
@@ -473,29 +473,29 @@ contains
         T_out=Ek/(Ek_fac*n_p)
 
     end subroutine
-!
-!        subroutine scale_v_s(Ek,T,T_out)
-!        implicit none
-!        integer i
-!        real(8), parameter :: Ek_fac = 1.5d0
-!        real(8) v, Ek,T, scalar, Ek1, T_out, T1
-!
-!
-!        !do i=1,3
-!            !v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
-!            !v_p(i,:) = v_p(i,:)-v
-!            !v_s(i,:) = v_s(i,:)-v
-!        !enddo
-!        !write(*,*)v
-!
-!        Ek1=0.5*mass_s*sum(v_s**2)
-!        T1=Ek1/(Ek_fac*n_s)
-!        scalar=sqrt(T/T1)
-!        v_s=v_s*scalar
-!        Ek=0.5*mass_s*sum(v_s**2)
-!        T_out=Ek/(Ek_fac*n_s)
-!
-!    end subroutine
+    !
+    !        subroutine scale_v_s(Ek,T,T_out)
+    !        implicit none
+    !        integer i
+    !        real(8), parameter :: Ek_fac = 1.5d0
+    !        real(8) v, Ek,T, scalar, Ek1, T_out, T1
+    !
+    !
+    !        !do i=1,3
+    !            !v=sum(v_p(i,:)*mass_p+v_s(i,:)*mass_s)/(n_p*mass_p+n_s*mass_s)
+    !            !v_p(i,:) = v_p(i,:)-v
+    !            !v_s(i,:) = v_s(i,:)-v
+    !        !enddo
+    !        !write(*,*)v
+    !
+    !        Ek1=0.5*mass_s*sum(v_s**2)
+    !        T1=Ek1/(Ek_fac*n_s)
+    !        scalar=sqrt(T/T1)
+    !        v_s=v_s*scalar
+    !        Ek=0.5*mass_s*sum(v_s**2)
+    !        T_out=Ek/(Ek_fac*n_s)
+    !
+    !    end subroutine
 
     subroutine output(output_file,cur_step,step)
         implicit none
@@ -537,7 +537,7 @@ contains
         integer i
         real(8), dimension(2):: x0,x1,v0,v1,xc,xm
         real(8) a,b,c,t,delta,norm_rest,s,det,norm_cs
-!$omp parallel do private(x0,x1,v0,v1,xc,xm,a,b,c,t,delta,norm_rest,det,norm_cs)
+        !$omp parallel do private(x0,x1,v0,v1,xc,xm,a,b,c,t,delta,norm_rest,det,norm_cs)
         do i=1,n_s
             ! 越界则回弹
             if (x_s(1,i)**2+x_s(2,i)**2>=radius**2) then
@@ -578,7 +578,7 @@ contains
 
             endif
         enddo
-!$omp end parallel do
+        !$omp end parallel do
     end subroutine
 
 end module
@@ -599,8 +599,8 @@ program Poissonfield
     output_file=12
     energy_file=13
     production_file=14
-    gama=1
-    equili_step=500000
+    gama=0.5
+    equili_step=100000
     equili_interval_step=1000
     total_step=3000000
     output_interval_step=100
@@ -625,16 +625,16 @@ program Poissonfield
     v_p=v_p-0.5
     v_s=v_s-0.5
     call scale_v(EK_scaled,T_set,T_scaled)
-!    call scale_v_p(Ek_scaled_p, T_set, T_scaled_p)
-!    call scale_v_s(Ek_scaled_s, T_set, T_scaled_s)
+    !    call scale_v_p(Ek_scaled_p, T_set, T_scaled_p)
+    !    call scale_v_s(Ek_scaled_s, T_set, T_scaled_s)
     write(*,*) ''
     write(*,*) 'Initial scaled kinetics Ek_scaled: ',Ek_scaled
     write(*,*) 'Initial setted temperature T_set: ',T_set
     write(*,*) 'Initial scaled temperature T_scaled: ',T_scaled
-!    write(*,*) 'Solution: '
-!    write(*,*) 'Initial scaled kinetics Ek_scaled: ',Ek_scaled
-!    write(*,*) 'Initial setted temperature T_set: ',T_set
-!    write(*,*) 'Initial scaled temperature T_scaled: ',T_scaled
+    !    write(*,*) 'Solution: '
+    !    write(*,*) 'Initial scaled kinetics Ek_scaled: ',Ek_scaled
+    !    write(*,*) 'Initial setted temperature T_set: ',T_set
+    !    write(*,*) 'Initial scaled temperature T_scaled: ',T_scaled
     ! 没有外场时，polymer和solution达到平衡
     call update_force(0)
     write(*,*) ''
@@ -647,7 +647,7 @@ program Poissonfield
             write(*,'(I7,5F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U_WALL,U
         endif
         !if (U>10000) write(*,*) cur_step,U
-! solvent
+        ! solvent
         x_s = x_s + v_s*time_step_s
         call bounce_back_s()
         call periodic_s()
@@ -663,43 +663,59 @@ program Poissonfield
         !call scale_v(EK_scaled,T_set,T_scaled)
         call cal_collision_velocity()
         if (mod(cur_step,10)==0)call scale_v(EK_scaled,T_set,T_scaled)
-      ! call scale_v_p(EK_scaled_p,T_set,T_scaled_p)
-       ! call scale_v_s(EK_scaled_s,T_set,T_scaled_s)
+        ! call scale_v_p(EK_scaled_p,T_set,T_scaled_p)
+        ! call scale_v_s(EK_scaled_s,T_set,T_scaled_s)
 
         call output(output_file,cur_step,equili_interval_step)
         call output_U(energy_file,cur_step,equili_interval_step)
-!        call date_and_time(TIME=time0)
-!        write(*,*) time0, f_p(:,20)
+        !        call date_and_time(TIME=time0)
+        !        write(*,*) time0, f_p(:,20)
     enddo
 
     write(*,*)'Production begin'
-        open(production_file,file='dump.production.lammpstrj')
+    open(production_file,file='dump.production.lammpstrj')
     !!! compute a(t-dt)
     call update_force(0)
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     write(*,'(A7,5A12)') 'step', 'BEND','FENE','LJ','WALL', 'total'
     write(*,*) '--------------------------------------------------------------------'
+    v_s(3,:) = v_s(3,:) + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+    x_s0(1:2,:)=x_s(1:2,:)
     do cur_step=1,total_step
-        if(mod(cur_step,output_interval_step)==0)then
+        if(mod(cur_step,equili_interval_step)==0)then
             write(*,'(I7,5F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U_WALL,U
         endif
-        x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
+
         x_s = x_s + v_s*time_step_s
+        v_s(3,:) = v_s(3,:) - gama + gama*(x_s0(1,:)**2+x_s0(2,:)**2)/radius**2
+        x_s0(1:2,:)=x_s(1:2,:)
         call bounce_back_s()
         call periodic_s()
+        !do i=1,10
+        ! polymer chain
+        x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
+        call periodic_p()
         call update_force(1)
         v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
-        !write(*,*) v_p(:,2),f0_p(:,2),f_p(:,2)
-        call scale_v(Ek,T_set,T_scaled)
+        !call scale_v_p(EK_scaled_p,T_set,T_scaled_p)
+        f0_p=f_p
+        !enddo
+        !call scale_v(EK_scaled,T_set,T_scaled)
         v_s(3,:) = v_s(3,:) + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         call cal_collision_velocity()
-        v_s(3,:) = v_s(3,:) - gama + gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
-        call scale_v(Ek,T_set,T_scaled)
-        call scale_v(Ek,T_set,T_scaled)
-        f0_p=f_p
+        !v_s(3,:) = v_s(3,:) - gama + gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+        if (mod(cur_step,10)==0)call scale_v(EK_scaled,T_set,T_scaled)
+        ! call scale_v_p(EK_scaled_p,T_set,T_scaled_p)
+        ! call scale_v_s(EK_scaled_s,T_set,T_scaled_s)
+
         call output(production_file,cur_step,output_interval_step)
+
     enddo
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    close(output_file)
+    close(energy_file)
+    close(production_file)
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 end program Poissonfield
