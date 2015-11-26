@@ -1,0 +1,12 @@
+&basic
+gama=0.001
+density_s=5
+radius=4
+
+desk_interval_step=10000
+equili_step=50000
+equili_interval_step=1000
+total_step=3000000
+output_interval_step=1000
+
+/
