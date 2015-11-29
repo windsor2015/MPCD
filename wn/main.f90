@@ -81,8 +81,8 @@ contains
 
     subroutine init()
         implicit none
-        integer i,j,k,h,count_number
-        real(8) distant,dx(2,4), theta, r
+        integer i,j,k,count_number
+        real(8) dx(2,4), theta, r
         logical success
         integer,parameter :: seed = 86456
 
@@ -129,15 +129,15 @@ contains
             success=.false.
             do count_number=1,11116
 
-                h=1+int(4*rand())
+                j=1+int(4*rand())
                 ! 当步数是5的倍数直接z轴加一
                 if(mod(i,5)==0)then
                     x_p(1,i)=x_p(1,i-1)+0
                     x_p(2,i)=x_p(2,i-1)+0
                     x_p(3,i)=x_p(3,i-1)+1.0
                 else
-                    x_p(1,i)=x_p(1,i-1)+dx(1,h)
-                    x_p(2,i)=x_p(2,i-1)+dx(2,h)
+                    x_p(1,i)=x_p(1,i-1)+dx(1,j)
+                    x_p(2,i)=x_p(2,i-1)+dx(2,j)
                     x_p(3,i)=x_p(3,i-1)
                 endif
 
@@ -365,10 +365,10 @@ contains
         !    use parameters
         implicit none
         integer ix,iy,iz,k,count_p,count_s,i,pointer_p(n_p),pointer_s(1000),cur_step
-        real(8) momentum(3), matrix(3,3), l(3), fai, theta, Ek1, T1, Ek, T_out,scalar
+        real(8)  matrix(3,3), l(3), fai, theta
         real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
         real(8)  v_aver(3), temp(3), randx, randy, randz
-        logical mask_p(n_p), mask_s(n_s), check
+        logical  check
 
         pointer_cell_p=0
         pointer_cell_s=0
@@ -473,7 +473,6 @@ contains
 
     subroutine Ek_T(Ek,T_out)
         implicit none
-        integer i
         real(8) Ek, T_out
 
         Ek=0.5*(mass_p*sum(v_p**2)+mass_s*sum(v_s**2))
@@ -482,8 +481,8 @@ contains
 
     subroutine thermostat(thermostat_method,cur_step,count_p,pointer_p,count_s,pointer_s,v_aver)
         implicit none
-        integer cur_step,count_p,count_s,pointer_p(n_p),pointer_s(100)
-        real(8) Ek, T, T_out,v_aver(3)
+        integer thermostat_method,cur_step,count_p,count_s,pointer_p(n_p),pointer_s(100)
+        real(8) v_aver(3)
         call thermostat_init()
         if (mod(cur_step, thermostat_interval)/=0) return
 
@@ -498,8 +497,8 @@ contains
                 call thermostat_MBS(count_p,pointer_p,count_s,pointer_s)
             case(4)
                 call thermostat_MCS(count_p,pointer_p,count_s,pointer_s)
-!            case(5)
-!                call thermostat_L(Ek,T,T_out)
+                !            case(5)
+                !                call thermostat_L(Ek,T,T_out)
         end select
 
     end subroutine
@@ -544,7 +543,7 @@ contains
     subroutine thermostat_B(scalar,count_p,pointer_p,count_s,pointer_s)
         implicit none
         integer i,k,count_p,count_s,pointer_p(count_p),pointer_s(count_s)
-        real(8) Ek,T, T_out, lambda,scalar
+        real(8) Ek,T, lambda,scalar
         !scalar=thermostat_B_parameter
         Ek=0
         do i=1,count_p
@@ -610,27 +609,27 @@ contains
         !    call cal_Ek_T(Ek,T_out)
     end subroutine
 
-!    subroutine thermostat_L(Ek,T,T_out)
-!        implicit none
-!        real(8) Ek,T,T_out
-!        real(8) noise, gfric, gama
-!        integer i
-!
-!        gfric=1d0-thermostat_parameter1/2d0;
-!        noise=sqrt(6.0*thermostat_parameter1*T/time_step_s**2)
-!
-!        do i=1,n_p
-!            f0_p(1,i)=f0_p(1,i)+2*noise*(rand()-0.5)
-!            f0_p(2,i)=f0_p(2,i)+2*noise*(rand()-0.5)
-!            f0_p(3,i)=f0_p(3,i)+2*noise*(rand()-0.5)
-!        enddo
-!        do i=1,n_s
-!            f_s(1,i)=2*noise*(rand()-0.5)
-!            f_s(2,i)=2*noise*(rand()-0.5)
-!            f_s(3,i)=2*noise*(rand()-0.5)
-!        enddo
-!        !call cal_Ek_T(Ek,T_out)
-!    end subroutine
+    !    subroutine thermostat_L(Ek,T,T_out)
+    !        implicit none
+    !        real(8) Ek,T,T_out
+    !        real(8) noise, gfric, gama
+    !        integer i
+    !
+    !        gfric=1d0-thermostat_parameter1/2d0;
+    !        noise=sqrt(6.0*thermostat_parameter1*T/time_step_s**2)
+    !
+    !        do i=1,n_p
+    !            f0_p(1,i)=f0_p(1,i)+2*noise*(rand()-0.5)
+    !            f0_p(2,i)=f0_p(2,i)+2*noise*(rand()-0.5)
+    !            f0_p(3,i)=f0_p(3,i)+2*noise*(rand()-0.5)
+    !        enddo
+    !        do i=1,n_s
+    !            f_s(1,i)=2*noise*(rand()-0.5)
+    !            f_s(2,i)=2*noise*(rand()-0.5)
+    !            f_s(3,i)=2*noise*(rand()-0.5)
+    !        enddo
+    !        !call cal_Ek_T(Ek,T_out)
+    !    end subroutine
 
     subroutine thermostat_MCS(count_p,pointer_p,count_s,pointer_s)
         implicit none
@@ -734,7 +733,7 @@ contains
         endif
     end subroutine
 
-    subroutine bounce_back(x,v,n,time_step, r)
+    subroutine bounce_back(x,v,n,time_step,r)
         implicit none
         integer i,n
         real(8), dimension(2):: x0,x1,v0,v1,xc,xm
@@ -745,9 +744,7 @@ contains
             if (x(1,i)**2+x(2,i)**2>=r**2) then
                 x1=x(1:2,i)
                 v0=v(1:2,i)
-
                 if (n==n_p) then
-
                     x0 = x1 - v0*time_step-0.5*f0_p(1:2,i)*time_step**2
                 else
                     x0 = x1 - v0*time_step
@@ -795,10 +792,9 @@ end module parameters
 program Poissonfield
     use parameters
     implicit none
-    real(8) :: Ek, EK_scaled,EK_scaled_p,T_scaled,T_scaled_p,density
+    real(8) :: EK_scaled,T_scaled
     integer :: cur_step,output_file,energy_file,production_file
-    character(10) :: time0
-    integer i, j, h_p
+    integer i, h_p
 
     output_file=12
     energy_file=13
