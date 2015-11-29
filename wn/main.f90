@@ -1,7 +1,12 @@
+#ifdef __INTEL_COMPILER
+include 'mkl_vsl.f90'
+#endif
 
 module parameters
 #ifdef __INTEL_COMPILER
     use ifport
+    USE MKL_VSL_TYPE
+    USE MKL_VSL
 #endif
     implicit none
     ! 下标约定: p - polymer, s - solution, b - boundary
@@ -58,6 +63,8 @@ module parameters
         desk_interval_step, equili_step, equili_interval_step, total_step, output_interval_step, &
         thermostat_method, thermostat_interval, thermostat_B_parameter,thermostat_A_parameter
 
+    TYPE (VSL_STREAM_STATE) :: vsl_stream
+
 contains
 
     function distance(x1,x2)
@@ -84,7 +91,7 @@ contains
         integer i,j,k,count_number
         real(8) dx(2,4), theta, r
         logical success
-        integer,parameter :: seed = 86456
+        integer,parameter :: seed = 11111
 
         !!!!!!!!!以下是cylinder channel初值!!!!!!!!!!!!!!
         !        n_b=0
@@ -223,7 +230,7 @@ contains
     subroutine FENE(f,U,rx)
         implicit none
         real(8) f(3), U, rx(3)
-        real(8), parameter :: FENE_rc=1.5*sigma, FENE_k=100
+        real(8), parameter :: FENE_rc=1.5*sigma, FENE_k=20
         real(8) temp,r
 
         rx(3)=rx(3)-n_cell_z*nint(rx(3)/n_cell_z)
@@ -367,7 +374,7 @@ contains
         integer ix,iy,iz,k,count_p,count_s,i,pointer_p(n_p),pointer_s(1000),cur_step
         real(8)  matrix(3,3), l(3), fai, theta
         real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
-        real(8)  v_aver(3), temp(3), randx, randy, randz
+        real(8)  v_aver(3), temp(3), randx, randy, randz, Ek, scalar
         logical  check
 
         pointer_cell_p=0
@@ -375,6 +382,7 @@ contains
         count_cell_p=0
         count_cell_s=0
         momentum_cell=0d0
+        scalar=1d0
         ! calculate velocity of all particles in each cell
         randx=(rand()-0.5)*box_size_unit
         randy=(rand()-0.5)*box_size_unit
@@ -410,7 +418,7 @@ contains
         enddo
         !$omp end parallel do
 
-        !$omp parallel do private(iy,iz,i,matrix,l,fai,theta,v_aver,temp,k)
+        !$omp parallel do private(iy,iz,i,matrix,l,fai,theta,v_aver,temp,k,scalar,count_p,count_s,Ek)
         do ix=0,n_cell_x
             do iy=0,n_cell_y
                 do iz=0,n_cell_z
@@ -439,24 +447,39 @@ contains
                     v_aver=momentum_cell(:,ix,iy,iz)/(mass_p*count_cell_p(ix,iy,iz)+mass_s*count_cell_s(ix,iy,iz))
                     count_p=count_cell_p(ix,iy,iz)
                     count_s=count_cell_s(ix,iy,iz)
+
+                    ! need two loops, 1 calculate Ek with delta v, 2 rotate and scale
+                    Ek=0
                     do i=1,count_p
                         k=pointer_cell_p(ix,iy,iz,i)
                         pointer_p(i)=pointer_cell_p(ix,iy,iz,i)
-                        temp=v_p(:,k)-v_aver
+                        v_p(:,k)=v_p(:,k)-v_aver
+                        Ek=Ek+mass_p*sum(v_p(:,k)**2)
+                    enddo
+                    do i=1,count_s
+                        k=pointer_cell_s(ix,iy,iz,i)
+                        pointer_s(i)=pointer_cell_s(ix,iy,iz,i)
+                        v_s(:,k)=v_s(:,k)-v_aver
+                        Ek=Ek+mass_s*sum(v_s(:,k)**2)
+                    enddo
+                    Ek=Ek/2d0
+
+                    if (thermostat_method>=10) scalar=thermostat_cal_scalar(cur_step, count_p+count_s, Ek)
+
+                    do i=1,count_p
+                        k=pointer_cell_p(ix,iy,iz,i)
+                        temp=v_p(:,k)*scalar
                         v_p(1,k)= v_aver(1) + matrix(1,1)*temp(1) + matrix(1,2)*temp(2) + matrix(1,3)*temp(3)
                         v_p(2,k)= v_aver(2) + matrix(2,1)*temp(1) + matrix(2,2)*temp(2) + matrix(2,3)*temp(3)
                         v_p(3,k)= v_aver(3) + matrix(3,1)*temp(1) + matrix(3,2)*temp(2) + matrix(3,3)*temp(3)
                     enddo
                     do i=1,count_s
                         k=pointer_cell_s(ix,iy,iz,i)
-                        pointer_s(i)=pointer_cell_s(ix,iy,iz,i)
-                        temp=v_s(:,k)-v_aver
+                        temp=v_s(:,k)*scalar
                         v_s(1,k)= v_aver(1) + matrix(1,1)*temp(1) + matrix(1,2)*temp(2) + matrix(1,3)*temp(3)
                         v_s(2,k)= v_aver(2) + matrix(2,1)*temp(1) + matrix(2,2)*temp(2) + matrix(2,3)*temp(3)
                         v_s(3,k)= v_aver(3) + matrix(3,1)*temp(1) + matrix(3,2)*temp(2) + matrix(3,3)*temp(3)
                     enddo
-
-                    call thermostat(thermostat_method,cur_step,count_p,pointer_p,count_s,pointer_s,v_aver)
 
                 enddo
             enddo
@@ -465,8 +488,28 @@ contains
 
     end subroutine
 
+    real(8) function thermostat_cal_scalar(cur_step, n_c, Ek) result(scalar)
+        implicit none
+        integer cur_step, n_c
+        real(8) Ek, T1
+        scalar=1d0
+        if (mod(cur_step, thermostat_interval)/=0) return
+
+        select case (thermostat_method)
+            case(10)
+                scalar=sqrt(1.5d0*(n_c-1)*T_set/Ek)
+            case(11)
+                call thermostat_MCS(Ek, n_c, scalar)
+            case(12)
+                call thermostat_MBS(Ek, n_c, scalar)
+        end select
+    end function
+
     subroutine thermostat_init()
         implicit none
+        integer s
+
+        s=vslnewstream(vsl_stream,VSL_BRNG_MT19937,77777)
         if (thermostat_method/=0) thermostat_interval=1
 
     end subroutine
@@ -479,94 +522,75 @@ contains
         T_out=Ek/(Ek_fac*(n_p+n_s-1))
     end subroutine
 
-    subroutine thermostat(thermostat_method,cur_step,count_p,pointer_p,count_s,pointer_s,v_aver)
+    subroutine thermostat(cur_step)
         implicit none
         integer thermostat_method,cur_step,count_p,count_s,pointer_p(n_p),pointer_s(100)
-        real(8) v_aver(3)
-        call thermostat_init()
+        real(8) v_aver(3),Ek
         if (mod(cur_step, thermostat_interval)/=0) return
 
         select case (thermostat_method)
             case(0)
-                call thermostat_I(count_p,pointer_p,count_s,pointer_s,v_aver)
+                call thermostat_I()
             case(1)
-                call thermostat_B(thermostat_B_parameter,count_p,pointer_p,count_s,pointer_s)
+                call thermostat_B()
             case(2)
-                call thermostat_A(thermostat_A_parameter,count_p,pointer_p,count_s,pointer_s)
+                call thermostat_A()
             case(3)
-                call thermostat_MBS(count_p,pointer_p,count_s,pointer_s)
+                !call thermostat_MBS(count_p,pointer_p,count_s,pointer_s)
             case(4)
-                call thermostat_MCS(count_p,pointer_p,count_s,pointer_s)
-                !            case(5)
-                !                call thermostat_L(Ek,T,T_out)
+                !call thermostat_MCS(count_p,pointer_p,count_s,pointer_s)
+            case(5)
+                !call thermostat_L(Ek,T,T_out)
         end select
 
     end subroutine
 
     !!!!以下是Isokinetics thermostat
-    subroutine thermostat_I(count_p,pointer_p,count_s,pointer_s,v_aver)
+    subroutine thermostat_I()
         implicit none
-        integer i,count_p,count_s,pointer_p(count_p),pointer_s(count_s),k
-        real(8) scalar, Ek1, T1,v_aver(3)
-        Ek1=0
-        do i=1,count_p
-            k=pointer_p(i)
-            v_p(:,k) = v_p(:,k)-v_aver
-            Ek1 = Ek1+mass_p*norm2(v_p(:,k))
-        enddo
-
-        do i=1,count_s
-            k=pointer_s(i)
-            v_s(:,k) = v_s(:,k)-v_aver
-            Ek1 = Ek1+mass_s*norm2(v_s(:,k))
-        enddo
-
-        T1=0.5*Ek1/(Ek_fac*(count_p+count_s-1))
-        scalar=sqrt(T_set/T1)
-        !  Ek=0
-        do i=1,count_p
-            k=pointer_p(i)
-            v_p(:,k) = v_p(:,k)*scalar
-            v_p(:,k) = v_p(:,k)+v_aver
-            !  Ek = Ek+mass_p*norm2(v_p(:,k))
-        enddo
-
-        do i=1,count_s
-            k=pointer_s(i)
-            v_s(:,k) = v_s(:,k)*scalar
-            v_s(:,k) = v_s(:,k)+v_aver
-            ! Ek = Ek+mass_s*norm2(v_s(:,k))
-        enddo
+        !        integer i,count_p,count_s,pointer_p(count_p),pointer_s(count_s),k
+        !        real(8) scalar, Ek1, T1,v_aver(3)
+        !        Ek1=0
+        !        do i=1,count_p
+        !            k=pointer_p(i)
+        !            v_p(:,k) = v_p(:,k)-v_aver
+        !            Ek1 = Ek1+mass_p*norm2(v_p(:,k))
+        !        enddo
+        !
+        !        do i=1,count_s
+        !            k=pointer_s(i)
+        !            v_s(:,k) = v_s(:,k)-v_aver
+        !            Ek1 = Ek1+mass_s*norm2(v_s(:,k))
+        !        enddo
+        !
+        !        T1=0.5*Ek1/(Ek_fac*(count_p+count_s-1))
+        !        scalar=sqrt(T_set/T1)
+        !        !  Ek=0
+        !        do i=1,count_p
+        !            k=pointer_p(i)
+        !            v_p(:,k) = v_p(:,k)*scalar
+        !            v_p(:,k) = v_p(:,k)+v_aver
+        !            !  Ek = Ek+mass_p*norm2(v_p(:,k))
+        !        enddo
+        !
+        !        do i=1,count_s
+        !            k=pointer_s(i)
+        !            v_s(:,k) = v_s(:,k)*scalar
+        !            v_s(:,k) = v_s(:,k)+v_aver
+        !            ! Ek = Ek+mass_s*norm2(v_s(:,k))
+        !        enddo
     end subroutine
 
     !Berendsen thermostat
-    subroutine thermostat_B(scalar,count_p,pointer_p,count_s,pointer_s)
+    subroutine thermostat_B()
         implicit none
-        integer i,k,count_p,count_s,pointer_p(count_p),pointer_s(count_s)
-        real(8) Ek,T, lambda,scalar
-        !scalar=thermostat_B_parameter
-        Ek=0
-        do i=1,count_p
-            k=pointer_p(i)
-            Ek = Ek+mass_p*norm2(v_p(:,k))
-        enddo
-        do i=1,count_s
-            k=pointer_s(i)
-            Ek = Ek+mass_s*norm2(v_s(:,k))
-        enddo
-
-        T=0.5*Ek/(Ek_fac*(count_p+count_s-1))
-        lambda = sqrt(1+scalar*(T_set/T-1.0))
-
-        do i=1,count_p
-            k=pointer_p(i)
-            v_p(:,k) = v_p(:,k)*lambda
-        enddo
-
-        do i=1,count_s
-            k=pointer_s(i)
-            v_s(:,k) = v_s(:,k)*lambda
-        enddo
+        real(8) v, Ek,T, Ek1, T_out, T1,lambda,tau,scalar
+        scalar=thermostat_B_parameter
+        Ek1=0.5*(mass_p*sum(v_p**2)+mass_s*sum(v_s**2))
+        T1=Ek1/(Ek_fac*(n_p+n_s))
+        lambda = sqrt(1+scalar*(T_set/T1-1.0))
+        v_p=v_p*lambda
+        v_s=v_s*lambda
     end subroutine
 
     function rand_gaussian(sigma) result(r)
@@ -583,27 +607,25 @@ contains
 
     end function
 
-    subroutine thermostat_A(nu_plus_dt,count_p,pointer_p,count_s,pointer_s)
+    subroutine thermostat_A()
         implicit none
         real(8) nu_plus_dt,sigma1
-        integer i,k,count_p,count_s,pointer_p(count_p),pointer_s(count_s)
-        !nu_plus_dt=thermostat_A_parameter
+        integer i,k
+        nu_plus_dt=thermostat_A_parameter
         sigma1=sqrt(T_set)
 
-        do i=1,count_p
-            k=pointer_p(i)
+        do i=1,n_p
             if (rand()<nu_plus_dt) then
-                v_p(1,k)=rand_gaussian(sigma1)/mass_p
-                v_p(2,k)=rand_gaussian(sigma1)/mass_p
-                v_p(3,k)=rand_gaussian(sigma1)/mass_p
+                v_p(1,i)=rand_gaussian(sigma1)/mass_p
+                v_p(2,i)=rand_gaussian(sigma1)/mass_p
+                v_p(3,i)=rand_gaussian(sigma1)/mass_p
             endif
         enddo
-        do i=1,count_s
-            k=pointer_s(i)
+        do i=1,n_s
             if (rand()<nu_plus_dt) then
-                v_s(1,k)=rand_gaussian(sigma1)/mass_s
-                v_s(2,k)=rand_gaussian(sigma1)/mass_s
-                v_s(3,k)=rand_gaussian(sigma1)/mass_s
+                v_s(1,i)=rand_gaussian(sigma1)/mass_s
+                v_s(2,i)=rand_gaussian(sigma1)/mass_s
+                v_s(3,i)=rand_gaussian(sigma1)/mass_s
             endif
         enddo
         !    call cal_Ek_T(Ek,T_out)
@@ -631,73 +653,49 @@ contains
     !        !call cal_Ek_T(Ek,T_out)
     !    end subroutine
 
-    subroutine thermostat_MCS(count_p,pointer_p,count_s,pointer_s)
+    subroutine thermostat_MCS(Ek, n_c, scalar)
         implicit none
-        real(8) :: zeta = 0.03
-        real(8) eplon, scalar, A, Ek
-        integer i,k,count_p, count_s, pointer_p(count_p), pointer_s(count_s)
-        Ek=0
-        do i=1,count_p
-            k=pointer_p(i)
-            Ek = Ek+mass_p*norm2(v_p(:,k))
-        enddo
-        do i=1,count_s
-            k=pointer_s(i)
-            Ek = Ek+mass_s*norm2(v_s(:,k))
-        enddo
-        eplon=rand()*zeta
-        if(rand()>0.5)then
-            scalar=1+eplon
-        else
-            scalar=1/(1d0+eplon)
-        endif
-        A=scalar**(3*(count_p+count_s-1))*exp(-(scalar*2-1)*Ek)
-        if(rand()<A)then
-            do i=1,count_p
-                k=pointer_p(i)
-                v_p(:,k) = v_p(:,k)*scalar
-            enddo
+        real(8) Ek, scalar
+        integer n_c
 
-            do i=1,count_s
-                k=pointer_s(i)
-                v_s(:,k) = v_s(:,k)*scalar
-            enddo
-        end if
+        real(8) :: zeta = 0.03
+        real(8) epsilon0, A
+
+        epsilon0=rand()*zeta
+        if(rand()>0.5)then
+            scalar=1+epsilon0
+        else
+            scalar=1/(1d0+epsilon0)
+        endif
+        A=scalar**(3*(n_c-1))*exp(-(scalar*2-1)*Ek/T_set)
+        if(rand()>A)then
+            scalar=1d0
+        endif
     end subroutine
 
-    subroutine thermostat_MBS(count_p,pointer_p,count_s,pointer_s)
+    subroutine thermostat_MBS(Ek, n_c, scalar)
         implicit none
-        real(8) scalar, p, x, y, Ek, gamma(100000)
-        integer i,j,k,count_p, count_s, pointer_p(count_p), pointer_s(count_s)
-        Ek=0
-        do i=1,count_p
-            k=pointer_p(i)
-            Ek = Ek+mass_p*norm2(v_p(:,k))
-        enddo
-        do i=1,count_s
-            k=pointer_s(i)
-            Ek = Ek+mass_s*norm2(v_s(:,k))
-        enddo
-        do j=1,1000
-            x=rand()*1000
-            p=1/(x*gamma(3/2*(count_p+count_s-1)))*x**(3/2*(count_p+count_s-1))*exp(-x)
+        real(8) Ek, scalar
+        integer n_c, s
+        real(8) p, x, y, r(1) !, gamma(100000)
+
+        s=vdrnggamma(VSL_RNG_METHOD_GAMMA_GNORM,vsl_stream,1,r,3d0/2*(n_c-1),0d0,T_set)
+        scalar=sqrt(r(1)/Ek)
+        !write(*,*)scalar
+        return
+
+        do while(.true.)
+            x=rand()*10
+            p=1/(x*gamma(3d0/2*(n_c-1)))*(x/T_set)**(3d0/2*(n_c-1))*exp(-x/T_set)
+            write(*,*)p
             y=rand()
             if(p>y)then
                 scalar=sqrt(x/Ek)
-                do i=1,count_p
-                    k=pointer_p(i)
-                    v_p(:,k) = v_p(:,k)*scalar
-                enddo
-
-                do i=1,count_s
-                    k=pointer_s(i)
-                    v_s(:,k) = v_s(:,k)*scalar
-                enddo
-            else
-                cycle
+                exit
             endif
         enddo
     end subroutine
+
     subroutine output(output_file,cur_step,step)
         implicit none
         integer cur_step,step,output_file,k
@@ -786,23 +784,57 @@ contains
         !$omp end parallel do
     end subroutine
 
+    subroutine one_step(cur_step,output_file)
+        implicit none
+
+        integer cur_step, output_file, i
+        real(8) :: EK_scaled,T_scaled
+        ! solvent
+        x_s = x_s + v_s*time_step_s
+        !v_s = v_s + 0.5*f_s*time_step_s
+        call bounce_back(x_s,v_s,n_s,time_step_s, radius)
+        call periodic_s()
+        ! polymer chain
+        do i=1,int(time_step_s/time_step_p)
+
+            x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
+            call bounce_back(x_p,v_p,n_p,time_step_p, radius)
+            call periodic_p()
+            call update_force(1)
+            v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
+            f0_p=f_p
+        enddo
+
+        call cal_collision_velocity(cur_step)
+        if (thermostat_method<10) call thermostat(cur_step)
+
+        if(mod(cur_step,desk_interval_step)==0)then
+            call Ek_T(EK_scaled, T_scaled)
+            write(*,'(I7,5F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U,T_scaled
+        endif
+
+        call output(output_file,cur_step,equili_interval_step)
+        !call output_U(energy_file,cur_step,equili_interval_step)
+    end subroutine
+
+
 end module parameters
 
 
 program Poissonfield
     use parameters
     implicit none
-    real(8) :: EK_scaled,T_scaled
     integer :: cur_step,output_file,energy_file,production_file
     integer i, h_p
+    real(8) :: EK_scaled,T_scaled
 
     output_file=12
     energy_file=13
     production_file=14
     !gama=0.001
-    h_p=int(time_step_s/time_step_p)
 
     call readin()
+    call thermostat_init()
 
     box_size = [n_cell_x, n_cell_y, n_cell_z]
     half_box_size(3) = n_cell_z/2d0
@@ -842,37 +874,12 @@ program Poissonfield
 
     do cur_step=1,equili_step
         ! write(*,*) U
-        ! solvent
-        x_s = x_s + v_s*time_step_s
-        !v_s = v_s + 0.5*f_s*time_step_s
-        call bounce_back(x_s,v_s,n_s,time_step_s, radius)
-        call periodic_s()
-        do i=1,h_p
-            ! polymer chain
-            x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
-            call bounce_back(x_p,v_p,n_p,time_step_p, radius)
-            call periodic_p()
-            call update_force(1)
-            v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
-            !call scale_v(EK_scaled,T_set,T_scaled)
-            f0_p=f_p
-        enddo
-        !call scale_v(EK_scaled,T_set,T_scaled)
-        call cal_collision_velocity(cur_step)
-        !call thermostat(EK_scaled,T_set,T_scaled)
-        ! call scale_v_p(EK_scaled_p,T_set,T_scaled_p)
-        ! call scale_v_s(EK_scaled_s,T_set,T_scaled_s)
-
-        if(mod(cur_step,desk_interval_step)==0)then
-            write(*,'(I7,5F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U,T_scaled
-        endif
-
-        call output(output_file,cur_step,equili_interval_step)
-        call output_U(energy_file,cur_step,equili_interval_step)
+        call one_step(cur_step, output_file)
         !        call date_and_time(TIME=time0)
         !        write(*,*) time0, f_p(:,20)
     enddo
 
+    write(*,*)
     write(*,*)'Production begin'
     open(production_file,file='dump.production.lammpstrj')
     !!! compute a(t-dt)
@@ -883,39 +890,7 @@ program Poissonfield
 
     do cur_step=1,total_step
         v_s(3,:) = v_s(3,:) + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
-        x_s0(1:2,:)=x_s(1:2,:)
-        x_s = x_s + v_s*time_step_s
-        call bounce_back(x_s,v_s,n_s,time_step_s,radius)
-        call periodic_s()
-        !v_s(3,:) = v_s(3,:) - gama + gama*(x_s0(1,:)**2+x_s0(2,:)**2)/radius**2
-        !x_s0(1:2,:)=x_s(1:2,:)
-
-        do i=1,h_p
-            ! polymer chain
-            x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
-            call bounce_back(x_p,v_p,n_p,time_step_p,radius)
-            call periodic_p()
-            call update_force(1)
-            v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
-            !call scale_v_p(EK_scaled_p,T_set,T_scaled_p)
-            f0_p=f_p
-        enddo
-        !call scale_v(EK_scaled,T_set,T_scaled)
-        !v_s(3,:) = v_s(3,:) + gama - gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
-
-        call cal_collision_velocity(cur_step)
-        !call thermostat(EK_scaled,T_set,T_scaled)
-        !v_s(3,:) = v_s(3,:) - gama + gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
-
-        ! call scale_v_p(EK_scaled_p,T_set,T_scaled_p)
-        ! call scale_v_s(EK_scaled_s,T_set,T_scaled_s)
-
-        if(mod(cur_step,desk_interval_step)==0)then
-            write(*,'(I7,5F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U,T_scaled
-        endif
-
-        call output(production_file,cur_step,output_interval_step)
-
+        call one_step(cur_step, production_file)
     enddo
 
     close(output_file)
