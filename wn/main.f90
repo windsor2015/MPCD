@@ -9,7 +9,7 @@ module parameters
     USE MKL_VSL
 #endif
     implicit none
-    ! 下标约定: p - polymer, s - solution, b - boundary
+    ! 下标约定: p - polymer, s - solution, b - boundary / phantom
 
     !结构
     integer, parameter :: n_p=40, n_cell_x=12, n_cell_y=12, n_cell_z=40
@@ -47,7 +47,7 @@ module parameters
     ! momentum - 每个格子中的总动量
     integer, dimension(0:n_cell_x, 0:n_cell_y, 0:n_cell_z, n_p) :: pointer_cell_p
     integer, dimension(0:n_cell_x, 0:n_cell_y, 0:n_cell_z, 100) :: pointer_cell_s
-    integer, dimension(0:n_cell_x, 0:n_cell_y, 0:n_cell_z) :: count_cell_p, count_cell_s
+    integer, dimension(0:n_cell_x, 0:n_cell_y, 0:n_cell_z) :: count_cell_p, count_cell_s, count_cell_b
     real(8), dimension(3,0:n_cell_x, 0:n_cell_y, 0:n_cell_z) :: momentum_cell
 
     integer :: desk_interval_step
@@ -191,8 +191,21 @@ contains
             x_s(3,i)=(rand()-0.5)*n_cell_z
         enddo
 
+        n_b=nint((radius*2+2)**2*n_cell_z*2*density_s)-n_s
+        allocate(x_b(3,n_b),v_b(3,n_b))
+        i=1
+        do while(i<=n_b)
+            x_b(1,i)=(rand()-0.5)*2*(radius+1)
+            x_b(2,i)=(rand()-0.5)*2*(radius+1)
+            if (x_b(1,i)**2+x_b(2,i)**2>radius**2) then
+                x_b(3,i)=(rand()-0.5)*n_cell_z
+                i=i+1
+            end if
+        enddo
+
         write(*,*)"Solvent particle number: ", n_s
         write(*,*)"Total particle number: ", n_p+n_s
+        write(*,*)"Phantom particle number: ", n_b
 
     endsubroutine
 
@@ -358,7 +371,7 @@ contains
 
         x=floor(r(1)+n_cell_x/2d0)
         y=floor(r(2)+n_cell_y/2d0)
-        z=floor(r(3)+n_cell_z/2d0)
+        z=floor(r(3)-n_cell_z*nint(r(3)/n_cell_z)+n_cell_z/2d0)
 
         s= x>=0 .and. x<=n_cell_x &
             .and. y>=0 .and. y<=n_cell_y &
@@ -374,32 +387,35 @@ contains
         integer ix,iy,iz,k,count_p,count_s,i,pointer_p(n_p),pointer_s(1000),cur_step
         real(8)  matrix(3,3), l(3), fai, theta
         real(8), parameter :: alpha = 130*pi/180, s=sin(alpha), c=cos(alpha)
-        real(8)  v_aver(3), temp(3), randx, randy, randz, Ek, scalar
+        real(8)  v_aver(3), temp(3), randx, randy, randz, Ek, scalar, randr(3)
         logical  check
 
         pointer_cell_p=0
         pointer_cell_s=0
         count_cell_p=0
         count_cell_s=0
+        count_cell_b=0
         momentum_cell=0d0
         scalar=1d0
         ! calculate velocity of all particles in each cell
-        randx=(rand()-0.5)*box_size_unit
-        randy=(rand()-0.5)*box_size_unit
-        randz=(rand()-0.5)*box_size_unit
+        !randx=(rand()-0.5)*box_size_unit
+        !randy=(rand()-0.5)*box_size_unit
+        !randz=(rand()-0.5)*box_size_unit
 
-        x0_p(1,:)=x_p(1,:)+randx
-        x0_s(1,:)=x_s(1,:)+randx
-        x0_p(2,:)=x_p(2,:)+randy
-        x0_s(2,:)=x_s(2,:)+randy
-        x0_p(3,:)=x_p(3,:)+randz
-        x0_s(3,:)=x_s(3,:)+randz
-        x0_p(3,:)=x0_p(3,:)-n_cell_z*nint((x0_p(3,:))/n_cell_z)
-        x0_s(3,:)=x0_s(3,:)-n_cell_z*nint((x0_s(3,:))/n_cell_z)
+        call random_number(randr)
+
+!        x0_p(1,:)=x_p(1,:)+randx
+!        x0_s(1,:)=x_s(1,:)+randx
+!        x0_p(2,:)=x_p(2,:)+randy
+!        x0_s(2,:)=x_s(2,:)+randy
+!        x0_p(3,:)=x_p(3,:)+randz
+!        x0_s(3,:)=x_s(3,:)+randz
+!        x0_p(3,:)=x0_p(3,:)-n_cell_z*nint((x0_p(3,:))/n_cell_z)
+!        x0_s(3,:)=x0_s(3,:)-n_cell_z*nint((x0_s(3,:))/n_cell_z)
 
         !$omp parallel do private(ix,iy,iz,check)
         do i=1,n_p
-            call get_cell_xyz(x0_p(:,i),ix,iy,iz,check)
+            call get_cell_xyz(x_p(:,i)+randr,ix,iy,iz,check)
             if (.not.check) cycle
             count_cell_p(ix,iy,iz)=count_cell_p(ix,iy,iz)+1
             pointer_cell_p(ix,iy,iz,count_cell_p(ix,iy,iz))=i
@@ -409,11 +425,23 @@ contains
 
         !$omp parallel do private(ix,iy,iz,check)
         do i=1,n_s
-            call get_cell_xyz(x0_s(:,i),ix,iy,iz,check)
+            call get_cell_xyz(x_s(:,i)+randr,ix,iy,iz,check)
             if (check) then
                 count_cell_s(ix,iy,iz)=count_cell_s(ix,iy,iz)+1
                 pointer_cell_s(ix,iy,iz,count_cell_s(ix,iy,iz))=i
                 momentum_cell(:,ix,iy,iz)=momentum_cell(:,ix,iy,iz)+mass_s*v_s(:,i)
+            endif
+        enddo
+        !$omp end parallel do
+
+        ! phantom particle, the velocity
+        !$omp parallel do private(ix,iy,iz,check)
+        do i=1,n_b
+            call get_cell_xyz(x_b(:,i)+randr,ix,iy,iz,check)
+            if (check) then
+                count_cell_b(ix,iy,iz)=count_cell_b(ix,iy,iz)+1
+                ! gaussian should be used
+                momentum_cell(:,ix,iy,iz)=momentum_cell(:,ix,iy,iz)+mass_s*[rand(),rand(),rand()]
             endif
         enddo
         !$omp end parallel do
@@ -423,7 +451,7 @@ contains
             do iy=0,n_cell_y
                 do iz=0,n_cell_z
 
-                    if (count_cell_p(ix,iy,iz)+count_cell_s(ix,iy,iz)<2) cycle
+                    if (count_cell_p(ix,iy,iz)+count_cell_s(ix,iy,iz)+count_cell_b(ix,iy,iz)<=1) cycle
 
                     fai=2.0*pi*rand(0)
                     theta=2.0*rand(0)-1
@@ -444,27 +472,35 @@ contains
                     matrix(3,2) = l(3)*l(2)*(1-c) + s*l(1)
                     matrix(3,3) = l(3)*l(3)*(1-c) + c
 
-                    v_aver=momentum_cell(:,ix,iy,iz)/(mass_p*count_cell_p(ix,iy,iz)+mass_s*count_cell_s(ix,iy,iz))
-                    count_p=count_cell_p(ix,iy,iz)
-                    count_s=count_cell_s(ix,iy,iz)
+                    v_aver=momentum_cell(:,ix,iy,iz) &
+                        / (mass_p*count_cell_p(ix,iy,iz)+mass_s*count_cell_s(ix,iy,iz)+mass_s*count_cell_b(ix,iy,iz))
 
                     ! need two loops, 1 calculate Ek with delta v, 2 rotate and scale
                     Ek=0
-                    do i=1,count_p
+                    do i=1,count_cell_p(ix,iy,iz)
                         k=pointer_cell_p(ix,iy,iz,i)
-                        pointer_p(i)=pointer_cell_p(ix,iy,iz,i)
+                        !pointer_p(i)=pointer_cell_p(ix,iy,iz,i)
                         v_p(:,k)=v_p(:,k)-v_aver
                         Ek=Ek+mass_p*sum(v_p(:,k)**2)
                     enddo
-                    do i=1,count_s
+                    do i=1,count_cell_s(ix,iy,iz)
                         k=pointer_cell_s(ix,iy,iz,i)
-                        pointer_s(i)=pointer_cell_s(ix,iy,iz,i)
+                        !pointer_s(i)=pointer_cell_s(ix,iy,iz,i)
                         v_s(:,k)=v_s(:,k)-v_aver
                         Ek=Ek+mass_s*sum(v_s(:,k)**2)
                     enddo
+                    do i=1,count_cell_b(ix,iy,iz)
+                        k=pointer_cell_b(ix,iy,iz,i)
+                        !pointer_s(i)=pointer_cell_s(ix,iy,iz,i)
+                        v_b(:,k)=v_b(:,k)-v_aver
+                        Ek=Ek+mass_s*sum(v_b(:,k)**2)
+                    enddo
                     Ek=Ek/2d0
 
-                    if (thermostat_method>=10) scalar=thermostat_cal_scalar(cur_step, count_p+count_s, Ek)
+                    scalar=1d0
+                    if (thermostat_method>=10) then
+                        scalar=thermostat_cal_scalar(cur_step, count_cell_p(ix,iy,iz)+count_cell_s(ix,iy,iz)+count_cell_b(ix,iy,iz), Ek)
+                    end if
 
                     do i=1,count_p
                         k=pointer_cell_p(ix,iy,iz,i)
@@ -524,8 +560,8 @@ contains
 
     subroutine thermostat(cur_step)
         implicit none
-        integer thermostat_method,cur_step,count_p,count_s,pointer_p(n_p),pointer_s(100)
-        real(8) v_aver(3),Ek
+        integer cur_step
+
         if (mod(cur_step, thermostat_interval)/=0) return
 
         select case (thermostat_method)
@@ -684,16 +720,16 @@ contains
         !write(*,*)scalar
         return
 
-        do while(.true.)
-            x=rand()*10
-            p=1/(x*gamma(3d0/2*(n_c-1)))*(x/T_set)**(3d0/2*(n_c-1))*exp(-x/T_set)
-            write(*,*)p
-            y=rand()
-            if(p>y)then
-                scalar=sqrt(x/Ek)
-                exit
-            endif
-        enddo
+        !        do while(.true.)
+        !            x=rand()*10
+        !            p=1/(x*gamma(3d0/2*(n_c-1)))*(x/T_set)**(3d0/2*(n_c-1))*exp(-x/T_set)
+        !            write(*,*)p
+        !            y=rand()
+        !            if(p>y)then
+        !                scalar=sqrt(x/Ek)
+        !                exit
+        !            endif
+        !        enddo
     end subroutine
 
     subroutine output(output_file,cur_step,step)
@@ -821,7 +857,7 @@ contains
 end module parameters
 
 
-program Poissonfield
+program Poisellie_field
     use parameters
     implicit none
     integer :: cur_step,output_file,energy_file,production_file
@@ -834,7 +870,6 @@ program Poissonfield
     !gama=0.001
 
     call readin()
-    call thermostat_init()
 
     box_size = [n_cell_x, n_cell_y, n_cell_z]
     half_box_size(3) = n_cell_z/2d0
@@ -845,7 +880,7 @@ program Poissonfield
     open(output_file,file='dump.cylinder.lammpstrj')
     open(energy_file,file='energy.out')
     call init()
-    !   call thermostat_init()
+    call thermostat_init()
     call output(output_file,0,equili_interval_step)
 
     !!!polymer的初速度
@@ -855,7 +890,7 @@ program Poissonfield
     v_p=v_p-0.5
     v_s=v_s-0.5
     write(*,*)v_p(:,1)
-    call cal_collision_velocity(0)
+    !call cal_collision_velocity(0)
     call Ek_T(EK_scaled,T_scaled)
 
     write(*,*) ''
@@ -899,4 +934,4 @@ program Poissonfield
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-end program Poissonfield
+end program Poisellie_field
