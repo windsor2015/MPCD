@@ -12,7 +12,7 @@ module parameters
     ! 下标约定: p - polymer, s - solution, b - boundary / phantom
 
     !结构
-    integer, parameter :: n_p=40, n_cell_x=12, n_cell_y=12, n_cell_z=40
+    integer, parameter :: n_p=0, n_cell_x=12, n_cell_y=12, n_cell_z=40
 
     integer n_b, n_s
 
@@ -193,7 +193,7 @@ contains
             x_s(3,i)=(rand()-0.5)*n_cell_z
         enddo
 
-        n_b=nint(pi*((radius*sqrt(3d0))**2-radius**2)*n_cell_z*density_s)
+        n_b=nint(pi*((radius+sqrt(5d-1))**2-radius**2)*n_cell_z*density_s)
 
         allocate(x_b(3,n_b),v_b(3,n_b))
         i=0
@@ -201,7 +201,7 @@ contains
             i=i+1
             if(i>n_b)exit
             theta=pi*2*rand()
-            r=sqrt(rand())*(radius+sqrt(2d0))
+            r=sqrt(rand())*(radius+sqrt(5d-1))
             if(r<=radius)then
                 i=i-1
                 else
