@@ -654,25 +654,43 @@ contains
 
     subroutine thermostat_A()
         implicit none
-        real(8) nu_plus_dt,sigma1
-        integer i,k
+        real(8) nu_plus_dt,sigma1,r(6)
+        integer i,k,s
         nu_plus_dt=thermostat_A_parameter
         sigma1=sqrt(T_set)
+        #ifdef __INTEL_COMPILER
+        s=vdrnggaussian(vsl_rng_method_gaussian_boxmuller,vsl_stream,6,r,0d0,sigma1)
+        #endif
 
-        do i=1,n_p
+         do i=1,n_p
             if (rand()<nu_plus_dt) then
-                v_p(1,i)=rand_gaussian(sigma1)/mass_p
-                v_p(2,i)=rand_gaussian(sigma1)/mass_p
-                v_p(3,i)=rand_gaussian(sigma1)/mass_p
+                v_p(1,i)=r(1)/mass_p
+                v_p(2,i)=r(2)/mass_p
+                v_p(3,i)=r(3)/mass_p
             endif
         enddo
         do i=1,n_s
             if (rand()<nu_plus_dt) then
-                v_s(1,i)=rand_gaussian(sigma1)/mass_s
-                v_s(2,i)=rand_gaussian(sigma1)/mass_s
-                v_s(3,i)=rand_gaussian(sigma1)/mass_s
+                v_s(1,i)=r(4)/mass_s
+                v_s(2,i)=r(5)/mass_s
+                v_s(3,i)=r(6)/mass_s
             endif
         enddo
+
+!        do i=1,n_p
+!            if (rand()<nu_plus_dt) then
+!                v_p(1,i)=rand_gaussian(sigma1)/mass_p
+!                v_p(2,i)=rand_gaussian(sigma1)/mass_p
+!                v_p(3,i)=rand_gaussian(sigma1)/mass_p
+!            endif
+!        enddo
+!        do i=1,n_s
+!            if (rand()<nu_plus_dt) then
+!                v_s(1,i)=rand_gaussian(sigma1)/mass_s
+!                v_s(2,i)=rand_gaussian(sigma1)/mass_s
+!                v_s(3,i)=rand_gaussian(sigma1)/mass_s
+!            endif
+!        enddo
         !    call cal_Ek_T(Ek,T_out)
     end subroutine
 
