@@ -797,11 +797,11 @@ contains
         endif
     end subroutine
 
-    subroutine bounce_back(x,v,n,time_step,r)
+    subroutine bounce_back(x,x_0,v,n,time_step,r)
         implicit none
         integer i,n
         real(8), dimension(2):: x0,x1,v0,v1,xc,xm
-        real(8) a,b,c,t,delta,norm_rest,s,det,norm_cs,x(3,n),v(3,n),time_step,r
+        real(8) a,b,c,t,delta,norm_rest,s,det,norm_cs,x(3,n),v(3,n),time_step,r,x_0(3,n)
 
         !$omp parallel do private(x0,x1,v0,v1,xc,xm,a,b,c,t,delta,norm_rest,det,norm_cs)
         do i=1,n
@@ -809,11 +809,12 @@ contains
             if (x(1,i)**2+x(2,i)**2>=r**2) then
                 x1=x(1:2,i)
                 v0=v(1:2,i)
-                if (n==n_p) then
-                    x0 = x1 - v0*time_step-0.5*f0_p(1:2,i)*time_step**2
-                else
-                    x0 = x1 - v0*time_step
-                endif
+                !if (n==n_p) then
+                x0 = x_0(1:2,i)
+                    !x0 = x1 - v0*time_step-0.5*f0_p(1:2,i)*time_step**2
+                !else
+                 !   x0 = x1 - v0*time_step
+                !endif
                 xm=x1-x0
                 ! solve equation sum((t*xm-x0)**2)=radius**2
                 ! 对于a*t^2+b*t+c=0，c必定小于0，因此解必有一正一负，仅取正值
@@ -857,15 +858,16 @@ contains
         integer cur_step, output_file, i
         real(8) :: EK_scaled,T_scaled
         ! solvent
+        x0_s=x_s
         x_s = x_s + v_s*time_step_s
         !v_s = v_s + 0.5*f_s*time_step_s
-        call bounce_back(x_s,v_s,n_s,time_step_s, radius)
+        call bounce_back(x_s,x0_s,v_s,n_s,time_step_s, radius)
         call periodic_s()
         ! polymer chain
         do i=1,int(time_step_s/time_step_p)
-
+            x0_p=x_p
             x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
-            call bounce_back(x_p,v_p,n_p,time_step_p, radius)
+            call bounce_back(x_p,x0_p,v_p,n_p,time_step_p, radius)
             call periodic_p()
             call update_force(1)
             v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
