@@ -801,7 +801,7 @@ contains
         implicit none
         integer i,n
         real(8), dimension(2):: x0,x1,v0,v1,xc,xm
-        real(8) a,b,c,t,delta,norm_rest,s,det,norm_cs,x(3,n),v(3,n),time_step,r,x_0(3,n)
+        real(8) a,b,c,t,t1,delta,norm_rest,s,det,norm_cs,x(3,n),v(3,n),time_step,r,x_0(3,n)
 
         !$omp parallel do private(x0,x1,v0,v1,xc,xm,a,b,c,t,delta,norm_rest,det,norm_cs)
         do i=1,n
@@ -809,12 +809,7 @@ contains
             if (x(1,i)**2+x(2,i)**2>=r**2) then
                 x1=x(1:2,i)
                 v0=v(1:2,i)
-                !if (n==n_p) then
                 x0 = x_0(1:2,i)
-                    !x0 = x1 - v0*time_step-0.5*f0_p(1:2,i)*time_step**2
-                !else
-                 !   x0 = x1 - v0*time_step
-                !endif
                 xm=x1-x0
                 ! solve equation sum((t*xm-x0)**2)=radius**2
                 ! 对于a*t^2+b*t+c=0，c必定小于0，因此解必有一正一负，仅取正值
@@ -828,25 +823,37 @@ contains
                 if (t<0 .or. t>1) cycle
                 ! 旋转，最好参看配图
                 xc=x0+(x1-x0)*t
-                det=xm(1)**2+xm(2)**2
+                !det=xm(1)**2+xm(2)**2
+                det=xc(1)**2+xc(2)**2
                 if (det==0) cycle
-                c=(xc(1)*xm(1)+xc(2)*xm(2))/det
-                s=(xc(2)*xm(1)-xc(1)*xm(2))/det
-
-                norm_cs=sqrt(c**2+s**2)
-                c=c/norm_cs
-                s=s/norm_cs
-
-                norm_rest=norm2(x1-xc)
-                x1(1)=-(c*xc(1)-s*xc(2))
-                x1(2)=-(s*xc(1)+c*xc(2))
-
-                v1=x1*norm2(v0)/r
-                x1=xc+x1*norm_rest/r
-
-                x(1:2,i)=x1
+                c=x1(1)*xc(1)
+                s=x1(2)*xc(2)
+                t1=1-(c+s)/det
+                x(1:2,i)=2d0*(x1(1:2)+xc(1:2)*t1)-x1(1:2)
+               ! x(3,i)=x1(3)
+                v1=(x(1:2,i)-xc(1:2))*norm2(v0)/norm2(x(1:2,i)-xc(1:2))
                 v(1:2,i)=v1
+                write(*,*)x(:,i),v(:,i)
+                stop
 
+!                c=(xc(1)*xm(1)+xc(2)*xm(2))/det
+!                s=(xc(2)*xm(1)-xc(1)*xm(2))/det
+!
+!                norm_cs=sqrt(c**2+s**2)
+!                c=c/norm_cs
+!                s=s/norm_cs
+!
+!                norm_rest=norm2(x1-xc)
+!                x1(1)=-(c*xc(1)-s*xc(2))
+!                x1(2)=-(s*xc(1)+c*xc(2))
+!
+!                v1=x1*norm2(v0)/r
+!                x1=xc+x1*norm_rest/r
+!
+!                x(1:2,i)=x1
+!                v(1:2,i)=v1
+!               write(*,*)x(:,i),v(:,i)
+!                stop
             endif
         enddo
         !$omp end parallel do
