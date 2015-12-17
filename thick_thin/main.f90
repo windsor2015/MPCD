@@ -97,31 +97,10 @@ contains
         logical success
         integer,parameter :: seed = 11111
 
-        !!!!!!!!!以下是cylinder channel初值!!!!!!!!!!!!!!
-        !        n_b=0
-        !        k=nint(2.0*pi*radius)
-        !        do j=0,2*n_cell_z
-        !            do i=0,2*k-1
-        !                n_b=n_b+1
-        !                if(mod(j,2)==0)then
-        !                    temp(1,n_b)=radius*cos(i*pi/k)
-        !                    temp(2,n_b)=radius*sin(i*pi/k)
-        !                else
-        !                    temp(1,n_b)=radius*cos(i*pi/k+pi/(2d0*k))
-        !                    temp(2,n_b)=radius*sin(i*pi/k+pi/(2d0*k))
-        !                endif
-        !                temp(3,n_b)=(j-n_cell_z)*0.5
-        !                ! write(output_file,'(2I6,3F13.4)') n_b,1,x_b(:,n_b)
-        !            enddo
-        !        enddo
-        !        allocate(x_b(3,n_b),v_b(3,n_b),f_b(3,n_b))
-        !        x_b=temp(:,1:n_b)
-        !        write(*,*)"Cylinder particle number: ", n_b
-
         !!!!!!!!!以下是polymer chain初值!!!!!!!!!!!!!!
         x_p(1,1)=0d0
         x_p(2,1)=0d0
-        x_p(3,1)=-10d0
+        x_p(3,1)=-15d0
 
         dx(1,1)=0
         dx(2,1)=1d0
@@ -153,7 +132,8 @@ contains
                 endif
 
                 ! 和壁保持距离
-                if((sqrt(x_p(1,i)**2+x_p(2,i)**2)>radius(1).and.x_p(3,i)<0).or.(sqrt(x_p(1,i)**2+x_p(2,i)**2)>radius(2).and.x_p(3,i)>0)) then
+                if((sqrt(x_p(1,i)**2+x_p(2,i)**2)>radius(1).and.x_p(3,i)<-5d0).or.(sqrt(x_p(1,i)**2+x_p(2,i)**2)>radius(2).and.x_p(3,i)>-5d0.and.x_p(3,i)<5d0)&
+                                                 .or.(sqrt(x_p(1,i)**2+x_p(2,i)**2)>radius(1).and.x_p(3,i)>5d0)) then
                     cycle
                 endif
                 ! 和除一级近邻外之前全部要保持一定距离
@@ -183,61 +163,110 @@ contains
 
         !!!!!!!!!!!!!!!!以下是solution粒子的初值!!!!!!!!!!!!!!
 
-        n_s(1)=nint(pi*radius_thick**2*n_cell_z/2d0*density_s)
-        n_s(2)=n_s(1)+nint(pi*radius_thin**2*n_cell_z/2d0*density_s)
-        allocate(x_s(3,n_s),v_s(3,n_s),f_s(3,n_s),x0_s(3,n_s),x_s0(3,n_s))
+        n_s(1)=nint(pi*radius_thick**2*3d0*n_cell_z/8d0*density_s)
+        n_s(2)=n_s(1)+nint(pi*radius_thin**2*n_cell_z/4d0*density_s)
+        n_s(3)=n_s(1)+n_s(2)
+        allocate(x_s(3,n_s(3)),v_s(3,n_s(3)),f_s(3,n_s(3)),x0_s(3,n_s(3)),x_s0(3,n_s(3)))
         i=0
-        do j=1,2
-        do while(.true.)
-            i=i+1
-            if(i>n_s(j))exit
+            do while(.true.)
+                i=i+1
+                if(i>n_s(1))exit
                 theta=pi*2*rand()
-                r=sqrt(rand())*radius(j)
+                r=sqrt(rand())*radius(1)
                 x_s(1,i)=r*cos(theta)
                 x_s(2,i)=r*sin(theta)
-                x_s(3,i)=(rand()-(j-2d0))*n_cell_z/2d0
-        enddo
-        i=i-1
-        enddo
+                x_s(3,i)=(rand()-1d0)*n_cell_z/2d0
+                if(x_s(3,i)>-5d0)then
+                    i=i-1
+                    cycle
+                end if
+            enddo
+            i=i-1
 
+            do while(.true.)
+                i=i+1
+                if(i>n_s(2))exit
+                theta=pi*2*rand()
+                r=sqrt(rand())*radius(2)
+                x_s(1,i)=r*cos(theta)
+                x_s(2,i)=r*sin(theta)
+                x_s(3,i)=(rand()-5d-1)*n_cell_z/4d0
+            enddo
+            i=i-1
+
+            do while(.true.)
+                i=i+1
+                if(i>n_s(3))exit
+                theta=pi*2*rand()
+                r=sqrt(rand())*radius(1)
+                x_s(1,i)=r*cos(theta)
+                x_s(2,i)=r*sin(theta)
+                x_s(3,i)=rand()*n_cell_z/2d0
+                if(x_s(3,i)<5d0)then
+                    i=i-1
+                    cycle
+                end if
+            enddo
+            i=i-1
         !!!!!!!!!!phantom particles
         n_b(1)=nint(pi*((radius(1)+sqrt(5d-1))**2-radius(1)**2)*n_cell_z/2d0*density_s)
         n_b(2)=n_b(1)+nint(pi*((radius(2)+sqrt(5d-1))**2-radius(2)**2)*n_cell_z/2d0*density_s)
         n_b(3)=n_b(2)+nint(pi*((radius(1)+sqrt(5d-1))**2-(radius(2)+sqrt(5d-1))**2)*sqrt(5d-1)*density_s)
 
-        allocate(x_b(3,n_b),v_b(3,n_b))
+        allocate(x_b(3,n_b(5)),v_b(3,n_b(5)))
         i=0
-        do j=1,2
+            do while(.true.)
+                i=i+1
+                if(i>n_b(1))exit
+                theta=pi*2*rand()
+                r=sqrt(rand())*(radius(1)+sqrt(5d-1))
+                if(r<=radius(1))then
+                    i=i-1
+                else
+                    x_b(1,i)=r*cos(theta)
+                    x_b(2,i)=r*sin(theta)
+                    x_b(3,i)=(rand()-1d0)*n_cell_z/2d0
+                if(x_b(3,i)>-5d0)then
+                    i=i-1
+                    cycle
+                end if
+                end if
+            enddo
+            i=i-1
+
         do while(.true.)
             i=i+1
-            if(i>n_b(j))exit
+            if(i>n_b(2))exit
             theta=pi*2*rand()
-            r=sqrt(rand())*(radius(j)+sqrt(5d-1))
-            if(r<=radius(j))then
+            r=sqrt(rand())*radius(1)
+            if(r<=radius(2))then
                 i=i-1
             else
                 x_b(1,i)=r*cos(theta)
                 x_b(2,i)=r*sin(theta)
-                x_b(3,i)=(rand()+(j-2d0))*n_cell_z/2d0
+                x_b(3,i)=rand()*(-5d0+sqrt(5d-1))
             end if
         enddo
         i=i-1
-        enddo
 
-
-        do while(.true.)
-            i=i+1
-            if(i>n_b(3))exit
-            theta=pi*2*rand()
-            r=sqrt(rand())*(radius(1)+sqrt(5d-1))
-            if(r<=radius(2)+sqrt(5d-1))then
-                i=i-1
-            else
-                x_b(1,i)=r*cos(theta)
-                x_b(2,i)=r*sin(theta)
-                x_b(3,i)=rand()*sqrt(5d-1)
-            end if
-        enddo
+            do while(.true.)
+                i=i+1
+                if(i>n_b(3))exit
+                theta=pi*2*rand()
+                r=sqrt(rand())*(radius(2)+sqrt(5d-1))
+                if(r<=radius(2))then
+                    i=i-1
+                else
+                    x_b(1,i)=r*cos(theta)
+                    x_b(2,i)=r*sin(theta)
+                    x_b(3,i)=(rand()-5d-1)*n_cell_z/4d0
+                if(x_b(3,i)>5d0-sqrt(5d-1).or.x_b(3,i)<-5d0+sqrt(5d-1))then
+                    i=i-1
+                    cycle
+                end if
+                end if
+            enddo
+            i=i-1
         write(*,*)i-1
         write(*,*)"Solvent particle number: ", n_s(2)
         write(*,*)"Total particle number: ", n_p+n_s(2)
@@ -824,37 +853,37 @@ contains
     endsubroutine
 
     subroutine cross(x,x_0,xc)
-    implicit none
-          integer i,n
-          real(8),dimension(3):: x, x_0, xc
-          real(8),dimension(2):: ss, cc, xm
-          real(8) sc, t, t1, a, b, c, d, det
-          logical check_cylinder,check_plane
-          !!越界与界面的交点
+        implicit none
+        integer i,n
+        real(8),dimension(3):: x, x_0, xc
+        real(8),dimension(2):: ss, cc, xm
+        real(8) sc, t, t1, a, b, c, d, det
+        logical check_cylinder,check_plane
+        !!越界与界面的交点
 
-            call cross_border(x,check_cylinder,check_plane)
-            if(check_cylinder)then
-                if(sqrt(x(1)**2+x(2)**2)>radius_thick)then
-                    r=radius_thick
-                elseif(sqrt(x(1)**2+x(2)**2)>radius_thin.and.sqrt(x(1)**2+x(2)**2)<radius_thick)then
-                    r=radius_thin
-                endif
-                xm=x(1:2)-x_0(1:2)
-                ! solve equation sum((t*xm-x0)**2)=radius**2
-                ! 对于a*t^2+b*t+c=0，c必定小于0，因此解必有一正一负，仅取正值
-                a=xm(1)**2+xm(2)**2
-                b=2*x_0(1)*xm(1)+2*x_0(2)*xm(2)
-                c=x_0(1)**2+x_0(2)**2-r**2
-                delta=b**2-4*a*c
-                if (delta<0) cycle
-                t=(-b+sqrt(delta))/2/a
-                if (t<0 .or. t>1) cycle
-                ! 旋转，最好参看配图
-                xc(1:2)=x_0(1:2)+(x(1:2)-x_0(1:2))*t
-                xc(3)=(xc(1)*x(3)-x_0(1)*x(3)+x(1)*x_0(3)-xc(1)*x_0(3))/(x(1)-x_0(1))
-              elseif(check_plane)then
-                xc(3)=0d0
-            end if
+        call cross_border(x,check_cylinder,check_plane)
+        if(check_cylinder)then
+            if(sqrt(x(1)**2+x(2)**2)>radius_thick)then
+                r=radius_thick
+            elseif(sqrt(x(1)**2+x(2)**2)>radius_thin.and.sqrt(x(1)**2+x(2)**2)<radius_thick)then
+                r=radius_thin
+            endif
+            xm=x(1:2)-x_0(1:2)
+            ! solve equation sum((t*xm-x0)**2)=radius**2
+            ! 对于a*t^2+b*t+c=0，c必定小于0，因此解必有一正一负，仅取正值
+            a=xm(1)**2+xm(2)**2
+            b=2*x_0(1)*xm(1)+2*x_0(2)*xm(2)
+            c=x_0(1)**2+x_0(2)**2-r**2
+            delta=b**2-4*a*c
+            if (delta<0) cycle
+            t=(-b+sqrt(delta))/2/a
+            if (t<0 .or. t>1) cycle
+            ! 旋转，最好参看配图
+            xc(1:2)=x_0(1:2)+(x(1:2)-x_0(1:2))*t
+            xc(3)=(xc(1)*x(3)-x_0(1)*x(3)+x(1)*x_0(3)-xc(1)*x_0(3))/(x(1)-x_0(1))
+        elseif(check_plane)then
+            xc(3)=0d0
+        end if
     end subroutine
 
     subroutine bounce_back(x,x_0,v,n)
@@ -867,20 +896,20 @@ contains
         !$omp parallel do private(x,v1,v,cc,ss,t,det)
         do i=1,n
             ! 越界则回弹
-               call cross(x(:,i),x_0(:,i),xc)
-               if(xc(3)/=0)then
+            call cross(x(:,i),x_0(:,i),xc)
+            if(xc(3)/=0)then
                 det=xc(1)**2+xc(2)**2
                 if (det==0) cycle
                 cc=x(1,i)*xc(1)
                 ss=x(2,i)*xc(2)
                 t=1-(cc+ss)/det
                 x(1:2,i)=2d0*(x(1:2,i)+xc(1:2)*t)-x(1:2,i)
-               ! x(3,i)=x1(3)
+                ! x(3,i)=x1(3)
                 v1=(x(1:2,i)-xc(1:2))*norm2(v(1:2,i))/norm2(x(1:2,i)-xc(1:2))
                 v(1:2,i)=v1
-               else
+            else
                 x(3,i)=2*xc(3)-x(3,i)
-              endif
+            endif
         enddo
         !$omp end parallel do
     end subroutine

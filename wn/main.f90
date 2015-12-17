@@ -204,25 +204,25 @@ contains
             r=sqrt(rand())*(radius+sqrt(5d-1))
             if(r<=radius)then
                 i=i-1
-                else
-            x_b(1,i)=r*cos(theta)
-            x_b(2,i)=r*sin(theta)
-            x_b(3,i)=(rand()-0.5)*n_cell_z
+            else
+                x_b(1,i)=r*cos(theta)
+                x_b(2,i)=r*sin(theta)
+                x_b(3,i)=(rand()-0.5)*n_cell_z
             end if
 
         enddo
 
-!        n_b=nint((radius*2+2)**2*n_cell_z*density_s)-n_s
-!        allocate(x_b(3,n_b),v_b(3,n_b))
-!        i=1
-!        do while(i<=n_b)
-!            x_b(1,i)=(rand()-0.5)*2*(radius+1)
-!            x_b(2,i)=(rand()-0.5)*2*(radius+1)
-!            if (x_b(1,i)**2+x_b(2,i)**2>radius**2) then
-!                x_b(3,i)=(rand()-0.5)*n_cell_z
-!                i=i+1
-!            end if
-!        enddo
+        !        n_b=nint((radius*2+2)**2*n_cell_z*density_s)-n_s
+        !        allocate(x_b(3,n_b),v_b(3,n_b))
+        !        i=1
+        !        do while(i<=n_b)
+        !            x_b(1,i)=(rand()-0.5)*2*(radius+1)
+        !            x_b(2,i)=(rand()-0.5)*2*(radius+1)
+        !            if (x_b(1,i)**2+x_b(2,i)**2>radius**2) then
+        !                x_b(3,i)=(rand()-0.5)*n_cell_z
+        !                i=i+1
+        !            end if
+        !        enddo
 
         write(*,*)"Solvent particle number: ", n_s
         write(*,*)"Total particle number: ", n_p+n_s
@@ -426,14 +426,14 @@ contains
         call random_number(randr)
         randr=(randr-0.5)*box_size_unit
 
-!        x0_p(1,:)=x_p(1,:)+randx
-!        x0_s(1,:)=x_s(1,:)+randx
-!        x0_p(2,:)=x_p(2,:)+randy
-!        x0_s(2,:)=x_s(2,:)+randy
-!        x0_p(3,:)=x_p(3,:)+randz
-!        x0_s(3,:)=x_s(3,:)+randz
-!        x0_p(3,:)=x0_p(3,:)-n_cell_z*nint((x0_p(3,:))/n_cell_z)
-!        x0_s(3,:)=x0_s(3,:)-n_cell_z*nint((x0_s(3,:))/n_cell_z)
+        !        x0_p(1,:)=x_p(1,:)+randx
+        !        x0_s(1,:)=x_s(1,:)+randx
+        !        x0_p(2,:)=x_p(2,:)+randy
+        !        x0_s(2,:)=x_s(2,:)+randy
+        !        x0_p(3,:)=x_p(3,:)+randz
+        !        x0_s(3,:)=x_s(3,:)+randz
+        !        x0_p(3,:)=x0_p(3,:)-n_cell_z*nint((x0_p(3,:))/n_cell_z)
+        !        x0_s(3,:)=x0_s(3,:)-n_cell_z*nint((x0_s(3,:))/n_cell_z)
 
         !$omp parallel do private(ix,iy,iz,check)
         do i=1,n_p
@@ -662,7 +662,7 @@ contains
         s=vdrnggaussian(vsl_rng_method_gaussian_boxmuller,vsl_stream,6,r,0d0,sigma1)
         #endif
 
-         do i=1,n_p
+        do i=1,n_p
             if (rand()<nu_plus_dt) then
                 v_p(1,i)=r(1)/mass_p
                 v_p(2,i)=r(2)/mass_p
@@ -677,20 +677,20 @@ contains
             endif
         enddo
 
-!        do i=1,n_p
-!            if (rand()<nu_plus_dt) then
-!                v_p(1,i)=rand_gaussian(sigma1)/mass_p
-!                v_p(2,i)=rand_gaussian(sigma1)/mass_p
-!                v_p(3,i)=rand_gaussian(sigma1)/mass_p
-!            endif
-!        enddo
-!        do i=1,n_s
-!            if (rand()<nu_plus_dt) then
-!                v_s(1,i)=rand_gaussian(sigma1)/mass_s
-!                v_s(2,i)=rand_gaussian(sigma1)/mass_s
-!                v_s(3,i)=rand_gaussian(sigma1)/mass_s
-!            endif
-!        enddo
+        !        do i=1,n_p
+        !            if (rand()<nu_plus_dt) then
+        !                v_p(1,i)=rand_gaussian(sigma1)/mass_p
+        !                v_p(2,i)=rand_gaussian(sigma1)/mass_p
+        !                v_p(3,i)=rand_gaussian(sigma1)/mass_p
+        !            endif
+        !        enddo
+        !        do i=1,n_s
+        !            if (rand()<nu_plus_dt) then
+        !                v_s(1,i)=rand_gaussian(sigma1)/mass_s
+        !                v_s(2,i)=rand_gaussian(sigma1)/mass_s
+        !                v_s(3,i)=rand_gaussian(sigma1)/mass_s
+        !            endif
+        !        enddo
         !    call cal_Ek_T(Ek,T_out)
     end subroutine
 
@@ -748,7 +748,7 @@ contains
 #endif
         scalar=sqrt(r(1)/Ek)
         !write(*,*)scalar
-     !    return
+        !    return
 
         !        do while(.true.)
         !            x=rand()*10
@@ -830,30 +830,10 @@ contains
                 s=x1(2)*xc(2)
                 t1=1-(c+s)/det
                 x(1:2,i)=2d0*(x1(1:2)+xc(1:2)*t1)-x1(1:2)
-               ! x(3,i)=x1(3)
+                ! x(3,i)=x1(3)
                 v1=(x(1:2,i)-xc(1:2))*norm2(v0)/norm2(x(1:2,i)-xc(1:2))
                 v(1:2,i)=v1
-                write(*,*)x(:,i),v(:,i)
-                stop
 
-!                c=(xc(1)*xm(1)+xc(2)*xm(2))/det
-!                s=(xc(2)*xm(1)-xc(1)*xm(2))/det
-!
-!                norm_cs=sqrt(c**2+s**2)
-!                c=c/norm_cs
-!                s=s/norm_cs
-!
-!                norm_rest=norm2(x1-xc)
-!                x1(1)=-(c*xc(1)-s*xc(2))
-!                x1(2)=-(s*xc(1)+c*xc(2))
-!
-!                v1=x1*norm2(v0)/r
-!                x1=xc+x1*norm_rest/r
-!
-!                x(1:2,i)=x1
-!                v(1:2,i)=v1
-!               write(*,*)x(:,i),v(:,i)
-!                stop
             endif
         enddo
         !$omp end parallel do
@@ -931,7 +911,7 @@ program Poisellie_field
     call random_number(v_s)
     v_p=v_p-0.5
     v_s=v_s-0.5
-   ! write(*,*)v_p(:,1)
+    ! write(*,*)v_p(:,1)
     call thermostat_I()
     !call cal_collision_velocity(0)
     call Ek_T(EK_scaled,T_scaled)
@@ -958,21 +938,21 @@ program Poisellie_field
         !        call date_and_time(TIME=time0)
         !        write(*,*) time0, f_p(:,20)
         if(mod(cur_step,output_interval_step)==0)then
-        do i=1,n_s
-          if(x_s(3,i)<2.0 .and. x_s(3,i)>-2.0)then
-            r=sqrt(x_s(1,i)**2+x_s(2,i)**2)
-            j=floor(r*5)
-            sum_v(j)=sum_v(j)+v_s(3,i)
-             n(j)=n(j)+1
-        end if
-        enddo
+            do i=1,n_s
+                if(x_s(3,i)<2.0 .and. x_s(3,i)>-2.0)then
+                    r=sqrt(x_s(1,i)**2+x_s(2,i)**2)
+                    j=floor(r*5)
+                    sum_v(j)=sum_v(j)+v_s(3,i)
+                    n(j)=n(j)+1
+                end if
+            enddo
 
-       end if
+        end if
     enddo
     do j=0,20
-     sum_v(j)=sum_v(j)/(total_step/output_interval_step)
-     write(velocity_file,*)j,sum_v(j)/n(j)
-     enddo
+        sum_v(j)=sum_v(j)/(total_step/output_interval_step)
+        write(velocity_file,*)j,sum_v(j)/n(j)
+    enddo
 
 
     write(*,*)
@@ -990,23 +970,23 @@ program Poisellie_field
     do cur_step=1,total_step
         v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         call one_step(cur_step, production_file)
-       if(mod(cur_step,output_interval_step)==0)then
-        do i=1,n_s
-          if(x_s(3,i)<2.0 .and. x_s(3,i)>-2.0)then
-            r=sqrt(x_s(1,i)**2+x_s(2,i)**2)
-            j=floor(r*5)
-            sum_v(j)=sum_v(j)+v_s(3,i)
-             n(j)=n(j)+1
-        end if
-        enddo
+        if(mod(cur_step,output_interval_step)==0)then
+            do i=1,n_s
+                if(x_s(3,i)<2.0 .and. x_s(3,i)>-2.0)then
+                    r=sqrt(x_s(1,i)**2+x_s(2,i)**2)
+                    j=floor(r*5)
+                    sum_v(j)=sum_v(j)+v_s(3,i)
+                    n(j)=n(j)+1
+                end if
+            enddo
 
-       end if
+        end if
 
     enddo
     do j=0,20
-     sum_v(j)=sum_v(j)/(total_step/output_interval_step)
-     write(velocity_file,*)j,sum_v(j)/n(j)
-     enddo
+        sum_v(j)=sum_v(j)/(total_step/output_interval_step)
+        write(velocity_file,*)j,sum_v(j)/n(j)
+    enddo
     close(output_file)
     close(energy_file)
     close(production_file)
