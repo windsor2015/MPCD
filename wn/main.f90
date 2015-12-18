@@ -67,6 +67,12 @@ module parameters
     TYPE (VSL_STREAM_STATE) :: vsl_stream
 #endif
 
+    integer :: debug=0
+    real(8) :: time0=0
+
+    real(8) sum_v(0:100,0:400),sum_grid_v(2,0:100,0:400)
+    integer n(0:100,0:400),n_grid(0:100,0:400)
+
 contains
 
     function distance(x1,x2)
@@ -839,11 +845,11 @@ contains
         !$omp end parallel do
     end subroutine
 
-    subroutine one_step(cur_step,output_file)
+    subroutine one_step(cur_step,interval_step,output_file)
         implicit none
 
-        integer cur_step, output_file, i
-        real(8) :: EK_scaled,T_scaled
+        integer cur_step, output_file,interval_step, i
+        real(8) :: EK_scaled,T_scaled,t
         ! solvent
         x0_s=x_s
         x_s = x_s + v_s*time_step_s
@@ -866,13 +872,79 @@ contains
 
         if(mod(cur_step,desk_interval_step)==0)then
             call Ek_T(EK_scaled, T_scaled)
-            write(*,'(I7,5F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U,T_scaled
+            call get_time(t)
+            write(*,'(I7,6F12.3)') cur_step, U_BEND, U_FENE, U_LJ, U,T_scaled,t
         endif
 
-        call output(output_file,cur_step,equili_interval_step)
+        call output(output_file,cur_step,interval_step)
         !call output_U(energy_file,cur_step,equili_interval_step)
     end subroutine
 
+        subroutine get_time(t)
+        implicit none
+        real(8) t
+        integer(8) t1, clock_rate, clock_max
+        call system_clock(t1,clock_rate,clock_max)
+        t=1d0*(t1-time0)/clock_rate
+        time0=t1
+    end subroutine
+
+    subroutine clear_stat()
+        sum_v=0
+        n=0
+        sum_grid_v=0
+        n_grid=0
+    end subroutine
+
+    subroutine stat_velocity(cur_step)
+        implicit none
+        integer cur_step
+        integer i,j,k
+        real(8) r
+        if(mod(cur_step,100)==0)then
+            do i=1,n_s
+                if(x_s(2,i)>-0.25.and.x_s(2,i)<0.25)then
+                    j=floor(x_s(1,i)*2)+8
+                    k=floor(x_s(3,i)*2)+40
+                    sum_grid_v(1,j,k)=sum_grid_v(1,j,k)+v_s(1,i)
+                    sum_grid_v(2,j,k)=sum_grid_v(2,j,k)+v_s(3,i)
+                    n_grid(j,k)=n_grid(j,k)+1
+                end if
+            enddo
+        endif
+
+        if(mod(cur_step,output_interval_step)==0)then
+            do k=0,39
+                do i=1,n_s
+                    if(x_s(3,i)<(k-19d0)*1d0 .and. x_s(3,i)>=(k-20d0)*1d0)then
+                        r=sqrt(x_s(1,i)**2+x_s(2,i)**2)
+                        j=floor(r*5)
+                        sum_v(j,k)=sum_v(j,k)+v_s(3,i)
+                        n(j,k)=n(j,k)+1
+                    end if
+                enddo
+            enddo
+        end if
+    end subroutine
+
+    subroutine output_velocity(num,velocity_file,coord_velo_file,step)
+        implicit none
+        integer num, velocity_file,coord_velo_file,step
+        integer k,j
+        do k=0,39
+            do j=0,19
+                sum_v(j,k)=sum_v(j,k)/(step/output_interval_step)
+                write(velocity_file,'(3I6,ES18.4)')num,k,j,sum_v(j,k)/n(j,k)
+            enddo
+        enddo
+
+        do j=0,14
+            do k=0,78
+                sum_grid_v(:,j,k)=sum_grid_v(:,j,k)/(step/100)
+                write(coord_velo_file,'(3I6,2ES18.4)')num,j,k,sum_grid_v(:,j,k)/n_grid(j,k)
+            enddo
+        enddo
+    end subroutine
 
 end module parameters
 
@@ -880,15 +952,15 @@ end module parameters
 program Poisellie_field
     use parameters
     implicit none
-    integer :: cur_step,output_file,energy_file,production_file,velocity_file
-    integer i,j, h_p,n(0:20)
-    real(8) :: EK_scaled,T_scaled,sum_v(0:20),r
+    integer :: cur_step,output_file,energy_file,production_file,velocity_file,coord_velo_file
+    integer i,j, h_p
+    real(8) :: EK_scaled,T_scaled,r,t
 
     output_file=12
     energy_file=13
     production_file=14
     velocity_file=15
-
+    coord_velo_file=16
     !gama=0.001
 
     call readin()
@@ -901,6 +973,10 @@ program Poisellie_field
     !!!读链的大小 改成1个文件
     open(output_file,file='dump.cylinder.lammpstrj')
     open(energy_file,file='energy.out')
+    open(production_file,file='dump.production.lammpstrj')
+    open(velocity_file,file='velocity_radius')
+    open(coord_velo_file,file='coordinate_velocity')
+
     call init()
     call thermostat_init()
     call output(output_file,0,equili_interval_step)
@@ -926,34 +1002,18 @@ program Poisellie_field
     f_s=0
     write(*,*) ''
     write(*,*)'Equilibrium begin:'
-    write(*,'(A7,5A12)') 'step', 'BEND','FENE','LJ','total','T_scaled'
+    write(*,'(A7,6A12)') 'step', 'BEND','FENE','LJ','total','T_scaled','time'
     write(*,*) '--------------------------------------------------------------------'
-    write(*,'(I7,5F12.3)') 0, U_BEND, U_FENE, U_LJ, U,T_scaled
+    write(*,'(I7,6F12.3)') 0, U_BEND, U_FENE, U_LJ, U,T_scaled,t
     open(velocity_file,file='velocity_radius')
-    sum_v=0
-    n=0
+
     do cur_step=1,equili_step
         ! write(*,*) U
-        call one_step(cur_step, output_file)
-        !        call date_and_time(TIME=time0)
-        !        write(*,*) time0, f_p(:,20)
-        if(mod(cur_step,output_interval_step)==0)then
-            do i=1,n_s
-                if(x_s(3,i)<2.0 .and. x_s(3,i)>-2.0)then
-                    r=sqrt(x_s(1,i)**2+x_s(2,i)**2)
-                    j=floor(r*5)
-                    sum_v(j)=sum_v(j)+v_s(3,i)
-                    n(j)=n(j)+1
-                end if
-            enddo
-
-        end if
-    enddo
-    do j=0,20
-        sum_v(j)=sum_v(j)/(total_step/output_interval_step)
-        write(velocity_file,*)j,sum_v(j)/n(j)
+        call one_step(cur_step, equili_interval_step,output_file)
+        call stat_velocity(cur_step)
     enddo
 
+    call output_velocity(1,velocity_file,coord_velo_file, equili_step)
 
     write(*,*)
     write(*,*)'Production begin'
@@ -961,36 +1021,22 @@ program Poisellie_field
     !!! compute a(t-dt)
     call update_force(0)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    write(*,'(A7,5A12)') 'step', 'BEND','FENE','LJ', 'total','T_scaled'
+    write(*,'(A7,6A12)') 'step', 'BEND','FENE','LJ', 'total','T_scaled','time'
 
     write(*,*) '--------------------------------------------------------------------'
 
-    sum_v=0
-    n=0
     do cur_step=1,total_step
         v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
-        call one_step(cur_step, production_file)
-        if(mod(cur_step,output_interval_step)==0)then
-            do i=1,n_s
-                if(x_s(3,i)<2.0 .and. x_s(3,i)>-2.0)then
-                    r=sqrt(x_s(1,i)**2+x_s(2,i)**2)
-                    j=floor(r*5)
-                    sum_v(j)=sum_v(j)+v_s(3,i)
-                    n(j)=n(j)+1
-                end if
-            enddo
-
-        end if
-
+        call one_step(cur_step, output_interval_step,production_file)
+        call stat_velocity(cur_step)
     enddo
-    do j=0,20
-        sum_v(j)=sum_v(j)/(total_step/output_interval_step)
-        write(velocity_file,*)j,sum_v(j)/n(j)
-    enddo
+    call output_velocity(2,velocity_file,coord_velo_file,total_step)
+
     close(output_file)
     close(energy_file)
     close(production_file)
-
+    close(velocity_file)
+    close(coord_velo_file)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 end program Poisellie_field
