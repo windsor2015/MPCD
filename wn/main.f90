@@ -12,7 +12,7 @@ module parameters
     ! 下标约定: p - polymer, s - solution, b - boundary / phantom
 
     !结构
-    integer, parameter :: n_p=0, n_cell_x=12, n_cell_y=12, n_cell_z=40
+    integer, parameter :: n_p=40, n_cell_x=12, n_cell_y=12, n_cell_z=40
 
     integer n_b, n_s
 
@@ -664,9 +664,9 @@ contains
         integer i,k,s
         nu_plus_dt=thermostat_A_parameter
         sigma1=sqrt(T_set)
-        #ifdef __INTEL_COMPILER
+#ifdef __INTEL_COMPILER
         s=vdrnggaussian(vsl_rng_method_gaussian_boxmuller,vsl_stream,6,r,0d0,sigma1)
-        #endif
+#endif
 
         do i=1,n_p
             if (rand()<nu_plus_dt) then
@@ -880,7 +880,7 @@ contains
         !call output_U(energy_file,cur_step,equili_interval_step)
     end subroutine
 
-        subroutine get_time(t)
+    subroutine get_time(t)
         implicit none
         real(8) t
         integer(8) t1, clock_rate, clock_max
@@ -904,8 +904,8 @@ contains
         if(mod(cur_step,100)==0)then
             do i=1,n_s
                 if(x_s(2,i)>-0.25.and.x_s(2,i)<0.25)then
-                    j=floor(x_s(1,i)*2)+8
-                    k=floor(x_s(3,i)*2)+40
+                    j=floor(x_s(1,i)*2)+floor()2*radius
+                    k=floor(x_s(3,i)*2)+n_cell_z
                     sum_grid_v(1,j,k)=sum_grid_v(1,j,k)+v_s(1,i)
                     sum_grid_v(2,j,k)=sum_grid_v(2,j,k)+v_s(3,i)
                     n_grid(j,k)=n_grid(j,k)+1
@@ -914,9 +914,9 @@ contains
         endif
 
         if(mod(cur_step,output_interval_step)==0)then
-            do k=0,39
+            do k=0,n_cell_z-1
                 do i=1,n_s
-                    if(x_s(3,i)<(k-19d0)*1d0 .and. x_s(3,i)>=(k-20d0)*1d0)then
+                    if(x_s(3,i)<(k-n_cell_z/2+1)*1d0 .and. x_s(3,i)>=(k-n_cell_z/2)*1d0)then
                         r=sqrt(x_s(1,i)**2+x_s(2,i)**2)
                         j=floor(r*5)
                         sum_v(j,k)=sum_v(j,k)+v_s(3,i)
@@ -931,15 +931,15 @@ contains
         implicit none
         integer num, velocity_file,coord_velo_file,step
         integer k,j
-        do k=0,39
-            do j=0,19
+        do k=0,n_cell_z-1
+            do j=0,floor(radius*5)-1
                 sum_v(j,k)=sum_v(j,k)/(step/output_interval_step)
                 write(velocity_file,'(3I6,ES18.4)')num,k,j,sum_v(j,k)/n(j,k)
             enddo
         enddo
 
-        do j=0,14
-            do k=0,78
+        do j=0,floor(radius*4)-2
+            do k=0,2*n_cell_z-2
                 sum_grid_v(:,j,k)=sum_grid_v(:,j,k)/(step/100)
                 write(coord_velo_file,'(3I6,2ES18.4)')num,j,k,sum_grid_v(:,j,k)/n_grid(j,k)
             enddo
@@ -1026,7 +1026,12 @@ program Poisellie_field
     write(*,*) '--------------------------------------------------------------------'
 
     do cur_step=1,total_step
-        v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+        do i=1,n_s
+            if(x_s(3,i)>=-n_cell_z/2d0.and.x_s(3,i)<=-n_cell_z/2d0+2d0)then
+            v_s(3,i) = v_s(3,i) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+            end if
+        end do
+
         call one_step(cur_step, output_interval_step,production_file)
         call stat_velocity(cur_step)
     enddo
