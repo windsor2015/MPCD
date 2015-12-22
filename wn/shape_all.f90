@@ -62,12 +62,13 @@ module shape_all
 
     real(8) :: BEND_b=10d0
 
-    character(50) :: dump_filename='dump.production.lammpstrj'
+    character(50) :: equili_filename='dump.equili.lammpstrj'
+    character(50) :: production_filename='dump.production.lammpstrj'
 
     namelist /basic/ gama, density_s, &
         desk_interval_step, equili_step, equili_interval_step, total_step, output_interval_step, &
         thermostat_method, thermostat_interval, thermostat_B_parameter,thermostat_A_parameter, &
-        string_form, BEND_b, dump_filename
+        string_form, BEND_b, equili_filename, production_filename
 
 #ifdef __INTEL_COMPILER
     TYPE (VSL_STREAM_STATE) :: vsl_stream

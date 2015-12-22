@@ -34,7 +34,7 @@ EXE_DIR = ./
 EXE = wn
 FC = ifort
 IDIR =
-CFLAGS = -fpp -openmp -O3 -finline-functions -funroll-loops -I. -ipo -xHost -mkl
+CFLAGS = -fpp -openmp -O3 -finline-functions -funroll-loops -I. -ipo -xHost -mkl -module $(OBJS_DIR)
 LFLAGS = -O3 -openmp -L. -s -mkl -ipo -xHost
 LIBS =
 

@@ -27,7 +27,7 @@ program Poisellie_field
     box_size_unit=1.0
 
     !!!读链的大小 改成1个文件
-    open(output_file,file='dump.cylinder.lammpstrj')
+    open(output_file,file=equili_filename)
     open(energy_file,file='energy.out')
     open(production_file,file=production_filename)
     open(velocity_file,file='velocity_radius')
