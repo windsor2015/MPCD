@@ -83,12 +83,12 @@ program Poisellie_field
 
     call clear_stat()
     do cur_step=1,total_step
-       ! do i=1,n_s
-            !write(*,*) -n_cell_z/2d0,-n_cell_z/2d0+2d0,x_s(3,i)
+        ! do i=1,n_s
+        !write(*,*) -n_cell_z/2d0,-n_cell_z/2d0+2d0,x_s(3,i)
         !    if (x_s(3,i)>=-n_cell_z/2d0 .and. x_s(3,i)<=-n_cell_z/2d0+2d0) then
-         !   if (x_s(2,i)>n_cell_y*(1d0-ratio_y)/2d0) then
-                v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
-         !   end if
+        !   if (x_s(2,i)>n_cell_y*(1d0-ratio_y)/2d0) then
+        v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+        !   end if
         !end do
 
         call one_step(cur_step, produ_interval_step,produ_file)

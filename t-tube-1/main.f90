@@ -12,17 +12,16 @@ module parameters
     ! 下标约定: p - polymer, s - solution, b - boundary / phantom
 
     !结构
-    integer, parameter :: n_p=40, n_cell_x=12, n_cell_y=12, n_cell_z=40
+    integer, parameter :: n_p=40, n_cell_x=10, n_cell_y=20, n_cell_z=50
 
     integer n_b, n_s
 
-    real(8), parameter :: BEND_b = 200
     !n是单体数目，n0是单体、壁、孔数目之和
 
     real(8), parameter :: kB = 1.38064852d-23
     real(8), parameter :: pi = 3.141592653589793238462643383279
 
-    real(8), parameter :: Ek_fac = 1.5d0
+    real(8), parameter :: Ek_fac = 1.5d0, ratio_y=0.3, ratio_z=0.4
 
     real(8), parameter :: time_step_p=1d-4, time_step_s=5d-3, mass_p=1, mass_s=0.2, T_set=1, v_gradient=0.2
 
@@ -33,15 +32,15 @@ module parameters
     ! boundaaries, 1~nb-up, nb+1~2nb-down
     real(8), allocatable, dimension(:,:) :: x_b, v_b, f_b
 
-    real(8) box_size_unit, half_box_size_unit, box_size(3), half_box_size(3)
+    real(8) box_size_unit,  box_size(3)    !!, half_box_size(3)   !!half_box_size_unit,
 
     real(8) aver_v(3), distant
 
     real(8), parameter :: sigma=1, epson=1
 
-    real(8) density_s, gama
+    real(8) :: density_s=5, gama=0.05
 
-    real(8), dimension(2)::radius=(/4d0, 1.5d0/)
+    ! real(8), dimension(2)::radius=(/4, 2/)
 
     real(8) U, U_LJ, U_FENE, U_BEND, U_WALL
 
@@ -72,15 +71,14 @@ module parameters
     integer :: debug=0
     real(8) :: time0=0
 
-    real(8) sum_v(2,0:100,0:400),sum_grid_v(2,0:100,0:400)
-    integer n(0:100,0:400),n_grid(0:100,0:400)
+    real(8) sum_v(3,0:100,0:400),sum_grid_v(3,0:100,0:100,0:400)
+    integer n(0:100,0:400),n_grid(0:100,0:100,0:400)
 
 contains
 
     function distance(x1,x2)
         implicit none
         real(8) distance,x1(3),x2(3)
-
         x1(3)=x1(3)-nint(x1(3)/n_cell_z)*n_cell_z
         x2(3)=x2(3)-nint(x2(3)/n_cell_z)*n_cell_z
         distance=norm2(x1-x2)
@@ -99,77 +97,72 @@ contains
     subroutine init()
         implicit none
         integer i,j,k,count_number
-        real(8) dx(2,4), theta, r,t
+        real(8) dx(2,4), theta, r,d
         logical success
         integer,parameter :: seed = 11111
 
         !!!!!!!!!以下是polymer chain初值!!!!!!!!!!!!!!
-        !        x_p(1,1)=0d0
-        !        x_p(2,1)=0d0
-        !        x_p(3,1)=-19d0
-        !
-        !        dx(1,1)=0
-        !        dx(2,1)=1d0
-        !
-        !        dx(1,2)=0
-        !        dx(2,2)=-1d0
-        !
-        !        dx(1,3)=1d0
-        !        dx(2,3)=0
-        !
-        !        dx(1,4)=-1d0
-        !        dx(2,4)=0
-        !
-        !        call srand(seed)
-        !        do i=2,n_p
-        !            success=.false.
-        !            do count_number=1,11116
-        !
-        !                j=1+int(4*rand())
-        !                ! 当步数是5的倍数直接z轴加一
-        !                if(mod(i,5)==0)then
-        !                    x_p(1,i)=x_p(1,i-1)+0
-        !                    x_p(2,i)=x_p(2,i-1)+0
-        !                    x_p(3,i)=x_p(3,i-1)+1.0
-        !                else
-        !                    x_p(1,i)=x_p(1,i-1)+dx(1,j)
-        !                    x_p(2,i)=x_p(2,i-1)+dx(2,j)
-        !                    x_p(3,i)=x_p(3,i-1)
-        !                endif
-        !
-        !                ! 和壁保持距离
-        !                if((sqrt(x_p(1,i)**2+x_p(2,i)**2)>radius(1).and.x_p(3,i)<-5d0) &
-            !                        .or.(sqrt(x_p(1,i)**2+x_p(2,i)**2)>radius(2).and.x_p(3,i)>-5d0.and.x_p(3,i)<5d0) &
-            !                        .or.(sqrt(x_p(1,i)**2+x_p(2,i)**2)>radius(1).and.x_p(3,i)>5d0)) then
-        !                    cycle
-        !                endif
-        !                ! 和除一级近邻外之前全部要保持一定距离
-        !                success = .true.
-        !                do k=1,i-2
-        !                    if(distance(x_p(:,i),x_p(:,k))<1.1)then
-        !                        success = .false.
-        !                        exit
-        !                    endif
-        !                enddo
-        !
-        !                if (success) then
-        !                    exit
-        !                endif
-        !            enddo
-        !
-        !            if (.not. success) then
-        !                x_p(1,i)=x_p(1,i-1)+0
-        !                x_p(2,i)=x_p(2,i-1)+0
-        !                x_p(3,i)=x_p(3,i-1)+1.0
-        !            endif
-        !        enddo
+        x_p(1,1)=0d0
+        x_p(2,1)=85d-1
+        x_p(3,1)=-24d0
 
-        do i=1,n_p
-            t=-pi+2*pi*i/n_p
-            x_p(1,i)=sin(t)+2*sin(2*t)
-            x_p(2,i)=cos(t)-2*cos(2*t)
-            x_p(3,i)=-sin(3*t)-10
-        end do
+        dx(1,1)=0
+        dx(2,1)=1d0
+
+        dx(1,2)=0
+        dx(2,2)=-1d0
+
+        dx(1,3)=1d0
+        dx(2,3)=0
+
+        dx(1,4)=-1d0
+        dx(2,4)=0
+
+        call srand(seed)
+        do i=2,n_p
+            success=.false.
+            do count_number=1,11116
+
+                j=1+int(4*rand())
+                ! 当步数是5的倍数直接z轴加一
+                if(mod(i,5)==0)then
+                    x_p(1,i)=x_p(1,i-1)+0
+                    x_p(2,i)=x_p(2,i-1)+0
+                    x_p(3,i)=x_p(3,i-1)+1.0
+                else
+                    x_p(1,i)=x_p(1,i-1)+dx(1,j)
+                    x_p(2,i)=x_p(2,i-1)+dx(2,j)
+                    x_p(3,i)=x_p(3,i-1)
+                endif
+
+                ! 和壁保持距离
+                if(x_p(1,i)<-n_cell_x/2d0 .or. x_p(1,i)>n_cell_x/2d0 .or. &
+                        (x_p(2,i)<0.and.x_p(2,i)>n_cell_y/2d0.and.abs(x_p(3,i))<=n_cell_z*ratio_z/2d0) &
+                        .or.((x_p(2,i)<n_cell_y*(1d0-ratio_y)/2d0 .or. x_p(2,i)>n_cell_y/2d0).and. &
+                        ((x_p(3,i)<-n_cell_z*ratio_z/2d0).or.(x_p(3,i)>n_cell_z*ratio_z/2d0)))) then
+                    cycle
+                endif
+                ! 和除一级近邻外之前全部要保持一定距离
+                success = .true.
+                do k=1,i-2
+                    if(distance(x_p(:,i),x_p(:,k))<1.1)then
+                        success = .false.
+                        exit
+                    endif
+                enddo
+
+                if (success) then
+                    exit
+                endif
+            enddo
+
+            if (.not. success) then
+                x_p(1,i)=x_p(1,i-1)+0
+                x_p(2,i)=x_p(2,i-1)+0
+                x_p(3,i)=x_p(3,i-1)+1.0
+            endif
+        enddo
+
         call periodic_p()
 
         write(*,*)"Polymer monomer number: ", n_p
@@ -183,10 +176,8 @@ contains
         do while(.true.)
             i=i+1
             if(i>n_s)exit
-            theta=pi*2*rand()
-            r=sqrt(rand())*radius(1)
-            x_s(1,i)=r*cos(theta)
-            x_s(2,i)=r*sin(theta)
+            x_s(1,i)=(rand()-5d-1)*n_cell_x
+            x_s(2,i)=(rand()-5d-1)*n_cell_y
             x_s(3,i)=(rand()-5d-1)*n_cell_z
             if(.not. in_pipe(x_s(:,i)))then
                 i=i-1
@@ -202,17 +193,12 @@ contains
         do while(.true.)
             i=i+1
             if(i>n_b)exit
-            theta=pi*2*rand()
-            r=sqrt(rand())*(radius(1)+sqrt(5d-1))
-            if(r<=radius(2))then
+            d=sqrt(5d-1)
+            x_b(1,i)=(rand()-5d-1)*(n_cell_x+2)
+            x_b(2,i)=(rand()-5d-1)*(n_cell_y+2)
+            x_b(3,i)=(rand()-5d-1)*n_cell_z
+            if(.not. in_pipe_phantom(x_b(:,i)))then
                 i=i-1
-            else
-                x_b(1,i)=r*cos(theta)
-                x_b(2,i)=r*sin(theta)
-                x_b(3,i)=(rand()-5d-1)*n_cell_z
-                if(.not. in_pipe_phantom(x_b(:,i)))then
-                    i=i-1
-                end if
             end if
         enddo
 
@@ -237,7 +223,6 @@ contains
         real(8) f(3), U, rx(3)
         real(8), parameter :: FENE_rc=1.5*sigma, FENE_k=5000
         real(8) temp,r
-
         rx(3)=rx(3)-n_cell_z*nint(rx(3)/n_cell_z)
         r=norm2(rx)
         if(r/=0 .and. r<=FENE_rc) then
@@ -252,7 +237,7 @@ contains
         real(8) f(3), U, rx(3)
         real(8), parameter :: LJ_rc=sigma*2d0**(1d0/6d0)
         real(8) temp,r
-
+        rx(1)=rx(1)-n_cell_x*nint(rx(1)/n_cell_x)
         rx(3)=rx(3)-n_cell_z*nint(rx(3)/n_cell_z)
         r=norm2(rx)
         if(r/=0 .and. r<=LJ_rc)then
@@ -265,7 +250,7 @@ contains
     subroutine BEND(f,U,rx1,rx2)
         implicit none
         real(8) f(3), U, rx1(3), rx2(3), c, r1, r2
-
+        real(8), parameter :: BEND_b = 10
         rx1(3)=rx1(3)-n_cell_z*nint(rx1(3)/n_cell_z)
         rx2(3)=rx2(3)-n_cell_z*nint(rx2(3)/n_cell_z)
 
@@ -688,10 +673,10 @@ contains
             write(output_file,*)'ITEM:TIMESTEP'
             write(output_file,'(I9)')cur_step
             write(output_file,*)'ITEM:NUMBER OF ATOMS'
-            write(output_file,'(I6)')n_p+n_s!+n_b
+            write(output_file,'(I6)')n_p+n_s+n_b
             write(output_file,*)'ITEM:BOX BOUNDS'
-            write(output_file,'(2F7.1)')-radius(1)-1,radius(1)+1
-            write(output_file,'(2F7.1)')-radius(1)-1,radius(1)+1
+            write(output_file,'(2F7.1)')-n_cell_x/2d0,n_cell_x/2d0
+            write(output_file,'(2F7.1)')-n_cell_y/2d0-1,n_cell_y/2d0+1
             write(output_file,'(2F7.1)')-n_cell_z/2d0,n_cell_z/2d0
             write(output_file,*)'ITEM:ATOMS id type x y z'
 
@@ -701,9 +686,9 @@ contains
             do k=1,n_s
                 write(output_file,'(2I6,3F13.4)') n_p+k,3,x_s(:,k)
             enddo
-            !            do k=1,n_b
-            !                write(output_file,'(2I6,3F13.4)') n_p+n_s+k,3,x_b(:,k)
-            !            enddo
+            do k=1,n_b
+                write(output_file,'(2I6,3F13.4)') n_p+n_s+k,2,x_b(:,k)
+            enddo
         endif
 
     end subroutine
@@ -718,13 +703,14 @@ contains
 
     logical function in_pipe(x)
         implicit none
-        real(8) x(3),r
-
-        r=sqrt(x(1)**2+x(2)**2)
-        if (abs(x(3))<5d0) then
-            in_pipe=r<radius(2)
-        else
-            in_pipe=r<radius(1)
+        real(8) x(3),z
+        z=x(3)-n_cell_z*nint((x(3))/n_cell_z)
+        in_pipe=.false.
+        if (abs(z)<=n_cell_z*ratio_z/2d0) then
+            in_pipe=x(2)<=n_cell_y/2d0 .and. x(2)>=0 .and. abs(x(1))<=n_cell_x/2d0
+        elseif ((z<=n_cell_z/2d0 .and. z>n_cell_z*ratio_z/2d0).or. &
+                (z<-n_cell_z*ratio_z/2d0 .and. z>=-n_cell_z/2d0)) then
+            in_pipe=x(2)<=n_cell_y/2d0 .and. x(2)>=(1d0-ratio_y)*n_cell_y/2d0 .and. abs(x(1))<=n_cell_x/2d0
         end if
     end function
 
@@ -733,41 +719,50 @@ contains
         real(8) x(3),r
         real d
         d=sqrt(5d-1)
-        r=sqrt(x(1)**2+x(2)**2)
-        if (abs(x(3))<5d0-d) then
-            in_pipe_phantom=r<radius(2)+d
-        else
-            in_pipe_phantom=r<radius(1)+d
+
+        if (abs(x(3))<=n_cell_z*ratio_z/2d0+d) then
+            in_pipe_phantom=x(2)<=n_cell_y/2d0+d.and.x(2)>=-d
+
+        elseif ((x(3)<=n_cell_z/2d0.and.x(3)>n_cell_z*ratio_z/2d0+d).or. &
+                (x(3)<-n_cell_z*ratio_z/2d0-d.and.x(3)>=-n_cell_z/2d0)) then
+
+            in_pipe_phantom=x(2)<=n_cell_y/2d0+d.and.x(2)>=(1d0-ratio_y)*n_cell_y/2d0-d
+
         end if
+
         in_pipe_phantom=in_pipe_phantom .and. (.not. in_pipe(x))
     end function
 
     real(8) function get_pipe_volume()
         implicit none
-        get_pipe_volume=2*pi*radius(1)**2*15+pi*radius(2)**2*10
+        get_pipe_volume=n_cell_x*n_cell_y/2d0*n_cell_z*ratio_z+ &
+            n_cell_x*ratio_y*n_cell_y/2d0*n_cell_z*(1d0-ratio_z)
     end function
 
     real(8) function get_pipe_phantom_volume()
         implicit none
         real d
         d=sqrt(5d-1)
-        get_pipe_phantom_volume=2*pi*(radius(1)+d)**2*(15+d)+pi*(radius(2)+d)**2*(10-2*d)-get_pipe_volume()
+        get_pipe_phantom_volume=(n_cell_x+2d0*d)*(n_cell_y/2d0+2d0*d)*(n_cell_z*ratio_z+2d0*d)+ &
+            (n_cell_x+2d0*d)*(ratio_y*n_cell_y/2d0+2d0*d)*(n_cell_z*(1-ratio_z)-2d0*d)-get_pipe_volume()
     end function
 
     integer function get_region(x)
         implicit none
-        real(8) x(3),r,z
-        r=sqrt(x(1)**2+x(2)**2)
-        z=x(3)
-        if (r>radius(1).or.(r>radius(2).and.r<radius(1).and.abs(z)<5d0))then
+        real(8) x(3),x_,y,z
+        x_=x(1)
+        y=x(2)
+        z=x(3)-n_cell_z*nint((x(3))/n_cell_z)
+        if (x_>n_cell_x/2d0.or.x_<-n_cell_x/2d0.or.y>n_cell_y/2d0.or.(y<0.and.abs(z)<=n_cell_z*ratio_z/2d0).or. &
+                (y<n_cell_y*(1d0-ratio_y)/2d0.and.(z<-n_cell_z*ratio_z/2d0.or.z>n_cell_z*ratio_z/2d0)))then
             get_region=0
             return
         endif
-        if (z<=-5)then
+        if (z<-n_cell_z*ratio_z/2d0)then
             get_region=1
             return
         endif
-        if (z>=5)then
+        if (z>n_cell_z*ratio_z/2d0)then
             get_region=3
             return
         endif
@@ -809,63 +804,79 @@ contains
     subroutine cross(x,x0,xc,normal)
         implicit none
         real(8),dimension(3):: x, x0, xc, normal, xm
-        real(8) t(4), a, b, c, r, delta, xc_list(3,4), normal_list(3,4), mint
-        logical check(4)
+        real(8) t(7), a, b, c, r, delta, xc_list(3,7), normal_list(3,7), mint, xc_list2(3,7)
+        logical check(7)
         integer i
         !!越界与界面的交点
-        ! 第1类，大圆交点
-
         t=-1
         xm=x-x0
-        a=xm(1)**2+xm(2)**2
-        b=2*x0(1)*xm(1)+2*x0(2)*xm(2)
-        c=x0(1)**2+x0(2)**2-radius(1)**2
+        ! 第1类，x2=n_cell_y/2d0
+        t(1)=(n_cell_y/2d0-x0(2))/xm(2)
 
-        delta=b**2-4*a*c
-        t(1)=(-b+sqrt(delta))/(2*a)
+        ! 第2类，x2=(1d0-ratio_y)*n_cell_y/2d0
+        t(2)=((1d0-ratio_y)*n_cell_y/2d0-x0(2))/xm(2)
 
-        ! 第2类，x3=-5
-        t(2)=(-5-x0(3))/xm(3)
+        ! 第3类，x2=0
+        t(3)=(0-x0(2))/xm(2)
 
-        ! 第3类，x3=5
-        t(3)=(5-x0(3))/xm(3)
+        ! 第4类，x3=-n_cell_z*ratio_z/2d0
+        t(4)=(-n_cell_z*ratio_z/2d0-x0(3))/xm(3)
 
-        ! 第4类，小圆交点
-        c=x0(1)**2+x0(2)**2-radius(2)**2
+        ! 第5类，x3=n_cell_z*ratio_z/2d0
+        t(5)=(n_cell_z*ratio_z/2d0-x0(3))/xm(3)
 
-        delta=b**2-4*a*c
-        if (delta>=0) t(4)=(-b+sqrt(delta))/(2*a)
+        ! 第6类，x1=-n_cell_x/2d0
+        t(6)=(-n_cell_x/2d0-x0(1))/xm(1)
 
-        do i=1,4
+        ! 第7类，x1=n_cell_x/2d0
+        t(7)=(n_cell_x/2d0-x0(1))/xm(1)
+
+        do i=1,7
             xc_list(:,i)=x0+xm*t(i)
         enddo
+        xc_list2=xc_list
 
-        ! 4种法线
+        xc_list2(3,:)=xc_list2(3,:)-n_cell_z*nint((xc_list2(3,:))/n_cell_z)
+
+        ! 7种法线
         normal_list=0
-        normal_list(1:2,1)=-xc_list(1:2,1)
-        normal_list(1:2,4)=-xc_list(1:2,4)
-        normal_list(3,2)=1
-        normal_list(3,3)=-1
+        normal_list(2,1)=1
+        normal_list(2,2)=-1
+        normal_list(2,3)=-1
+        normal_list(3,4)=-1
+        normal_list(3,5)=1
+        normal_list(1,6)=-1
+        normal_list(1,7)=1
 
-        ! 4类边界的范围
-        check(1)=abs(xc_list(3,1))>=5
+        ! 7类边界的范围
+        check(1)=abs(xc_list2(3,1))<=n_cell_z/2d0 .and. abs(xc_list2(1,1))<=n_cell_x/2d0
 
-        r=sqrt(xc_list(1,2)**2+xc_list(2,2)**2)
-        check(2)=r<radius(1) .and. r>radius(2)
+        check(2)=((xc_list2(3,2)>=-n_cell_z/2d0 .and. xc_list2(3,2)<-n_cell_z*ratio_z/2d0) .or. &
+            (xc_list2(3,2)<=n_cell_z/2d0 .and. xc_list2(3,2)>n_cell_z*ratio_z/2d0)) .and. abs(xc_list2(1,2))<=n_cell_x/2d0
 
-        r=sqrt(xc_list(1,3)**2+xc_list(2,3)**2)
-        check(3)=r<radius(1) .and. r>radius(2)
+        check(3)=abs(xc_list2(3,3))<=n_cell_z*ratio_z/2d0 .and. abs(xc_list2(1,3))<=n_cell_x/2d0
 
-        check(4)=abs(xc_list(3,4))<5
+        check(4:5)=(xc_list2(2,4:5)<=n_cell_y*(1d0-ratio_y)/2d0 .and. xc_list2(2,4:5)>0) .and. abs(xc_list2(1,4:5))<=n_cell_x/2d0
+
+        check(6:7)=(((xc_list2(3,6:7)>=-n_cell_z/2d0 .and. xc_list2(3,6:7)<-n_cell_z*ratio_z/2d0) .or. &
+            (xc_list2(3,6:7)<=n_cell_z/2d0 .and. xc_list2(3,6:7)>n_cell_z*ratio_z/2d0)) .and. &
+            (xc_list2(2,6:7)>=n_cell_y*(1d0-ratio_y)/2d0 .and. xc_list2(2,6:7)<=n_cell_y/2d0)) .or. &
+            (abs(xc_list2(3,6:7))<=n_cell_z*ratio_z/2d0 .and.(xc_list2(2,6:7)<=n_cell_y/2d0 .and. xc_list2(2,6:7)>=0))
+
 
         mint=1
-        do i=1,4
+        do i=1,7
             if (t(i)>=0 .and. t(i)<1 .and. check(i) .and. t(i)<mint) then
                 xc=xc_list(:,i)
                 normal=normal_list(:,i)
                 mint=t(i)
             endif
         enddo
+
+        if (debug==1)then
+            write(*,*) 't',t
+            write(*,*) 'min_t',mint,check
+        end if
 
         !return
         !    call cross_border(x,check_cylinder,check_plane)
@@ -893,9 +904,9 @@ contains
         !    end if
     end subroutine
 
-    subroutine bounce_back(x,x0,v,n)
+    subroutine bounce_back(x,x0,v,n,cur_step)
         implicit none
-        integer i,n,c
+        integer i,n,c, cur_step
 
         real(8), dimension(3,n):: x, x0, v
 
@@ -904,16 +915,22 @@ contains
             ! 越界则回弹
             if (get_region(x(:,i))/=get_region(x0(:,i))) then
                 c=0
-                do while(.not. in_pipe(x(:,i)))
+                !                debug=0
+                do while(get_region(x(:,i))==0)
+!                    if (i==1979) debug=1
+!                    if (debug==1)then
+!                        write(*,*)x0(:,i)
+!                        write(*,*)x(:,i)
+!                        debug=1
+!                    endif
                     call do_ba(x(:,i),x0(:,i),v(:,i))
                     c=c+1
-                    !                    if (c>2) then
-                    !                        write(*,*)c,i
-                    !                        write(*,*)x0(:,i)
-                    !                        write(*,*)x(:,i)
-                    !                        write(*,*)norm2(x0(1:2,i)),norm2(x(1:2,i))
-                    !                        debug=1
-                    !                    end if
+!                    if (c>2 .or. debug==1) then
+!                        write(*,*) 'c',c,i,cur_step
+!                        write(*,*) 'x',x(:,i)
+!                        if (c>10) stop
+!                        debug=1
+!                    end if
                 enddo
             endif
         enddo
@@ -925,11 +942,12 @@ contains
 
         integer cur_step, output_file, i, interval_step
         real(8) :: EK_scaled,T_scaled,t
+
         ! solvent
         x0_s=x_s
         x_s = x_s + v_s*time_step_s
         !v_s = v_s + 0.5*f_s*time_step_s
-        call bounce_back(x_s,x0_s,v_s,n_s)
+        call bounce_back(x_s,x0_s,v_s,n_s,cur_step)
         call periodic_s()
         ! polymer chain
         do i=1,int(time_step_s/time_step_p)
@@ -937,7 +955,7 @@ contains
             x0_p=x_p
             x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
 
-            call bounce_back(x_p,x0_p,v_p,n_p)
+            call bounce_back(x_p,x0_p,v_p,n_p,cur_step)
             call periodic_p()
             call update_force(1)
             v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
@@ -950,7 +968,8 @@ contains
         if(mod(cur_step,desk_interval_step)==0)then
             call Ek_T(EK_scaled, T_scaled)
             call get_time(t)
-            write(*,'(I7,6F12.3)') cur_step,U_BEND,U_FENE,U_LJ,U,T_scaled,t
+            write(*,'(I7,6F12.3)') cur_step,U_BEND,U_FENE,U_LJ,U,T_scaled,t-time0
+            time0=t
         endif
 
         call output(output_file,cur_step,interval_step)
@@ -962,58 +981,68 @@ contains
         real(8) t
         integer(8) t1, clock_rate, clock_max
         call system_clock(t1,clock_rate,clock_max)
-        t=1d0*(t1-time0)/clock_rate
-        time0=t1
+        t=1d0*t1/clock_rate
+        !time0=t1
     end subroutine
 
     subroutine stat_velocity(cur_step)
         implicit none
         integer cur_step
-        integer i,j,k
-        real(8) r
+        integer i,j,k,l
+
         if(mod(cur_step,1)==0)then
             do i=1,n_s
-                if(x_s(2,i)>-0.25.and.x_s(2,i)<0.25)then
-                    j=floor(x_s(1,i)*2)+8
-                    k=floor(x_s(3,i)*2)+40
-                    sum_grid_v(1,j,k)=sum_grid_v(1,j,k)+v_s(1,i)
-                    sum_grid_v(2,j,k)=sum_grid_v(2,j,k)+v_s(3,i)
-                    n_grid(j,k)=n_grid(j,k)+1
-                    ! write(coord_velo_file,'(I10,2F13.4,2ES18.4)')cur_step,x_s(1,i),x_s(3,i),v_s(1,i),v_s(3,i)
-                end if
+                !if (.not. in_pipe(x_s(:,i))) cycle
+                !if(x_s(2,i)>-0.25.and.x_s(2,i)<0.25)then
+                l=floor(x_s(1,i)*2+n_cell_x)
+                j=floor(x_s(2,i)*2+n_cell_y)
+                k=floor(x_s(3,i)*2+n_cell_z)
+                sum_grid_v(1,k,j,l)=sum_grid_v(1,k,j,l)+v_s(1,i)
+                sum_grid_v(2,k,j,l)=sum_grid_v(2,k,j,l)+v_s(2,i)
+                sum_grid_v(3,k,j,l)=sum_grid_v(3,k,j,l)+v_s(3,i)
+                n_grid(k,j,l)=n_grid(k,j,l)+1
+                !if (j==33.and.k==74) write(*,*) x_s(:,i),v_s(:,i), i
+                !end if
+                !write(*,*)j,k
             enddo
         endif
 
-        if(mod(cur_step,output_interval_step)==0)then
-            do k=0,n_cell_z-1
-                do i=1,n_s
-                    if(x_s(3,i)<(k-n_cell_z/2+1)*1d0 .and. x_s(3,i)>=(k-n_cell_z/2)*1d0)then
-                        r=sqrt(x_s(1,i)**2+x_s(2,i)**2)
-                        j=floor(r*5)
-                        sum_v(1,j,k)=sum_v(1,j,k)+(v_s(1,i)*x_s(1,i)+v_s(2,i)*x_s(2,i))/r
-                        sum_v(2,j,k)=sum_v(2,j,k)+v_s(3,i)
-                        n(j,k)=n(j,k)+1
-                    end if
-                enddo
-            enddo
-        end if
+        !        if(mod(cur_step,output_interval_step)==0)then
+        !            do k=0,n_cell_z-1
+        !                do i=1,n_s
+        !                    if(x_s(3,i)<(k-n_cell_z/2d0+1)*1d0 .and. x_s(3,i)>=(k-n_cell_z/2d0)*1d0)then
+        !                        r=sqrt(x_s(1,i)**2+x_s(2,i)**2)
+        !                        j=floor(r*5)
+        !                        sum_v(1,j,k)=sum_v(1,j,k)+(v_s(1,i)*x_s(1,i)+v_s(2,i)*x_s(2,i))/r
+        !                        sum_v(2,j,k)=sum_v(2,j,k)+v_s(3,i)
+        !                        n(j,k)=n(j,k)+1
+        !                    end if
+        !                enddo
+        !            enddo
+        !        end if
     end subroutine
 
     subroutine output_velocity(num,velocity_file,coord_velo_file,step)
         implicit none
         integer num, velocity_file,coord_velo_file,step
-        integer k,j
-        do k=0,n_cell_z-1
-            do j=0,floor(radius(1)*5)-1
-                sum_v(:,j,k)=sum_v(:,j,k)/(step/output_interval_step)
-                write(velocity_file,'(3I6,2ES18.4)')num,k,j,sum_v(:,j,k)/n(j,k)
-            enddo
-        enddo
-
-        do j=0,floor(radius(1)*4)-1
-            do k=0,2*n_cell_z-1
-                sum_grid_v(:,j,k)=sum_grid_v(:,j,k)/(step/1)
-                write(coord_velo_file,'(3I6,2ES18.4)')num,j,k,sum_grid_v(:,j,k)/n_grid(j,k)
+        integer k,j,l
+        !        do k=0,n_cell_z-1
+        !            do j=0,19
+        !                sum_v(:,j,k)=sum_v(:,j,k)/(step/output_interval_step)
+        !                write(velocity_file,'(3I6,2ES18.4)')num,k,j,sum_v(:,j,k)/n(j,k)
+        !            enddo
+        !        enddo
+        do l=0,2*n_cell_x-1
+            do j=n_cell_y,2*n_cell_y-1
+                do k=0,2*n_cell_z-1
+                    sum_grid_v(:,k,j,l)=sum_grid_v(:,k,j,l)/(step/1)
+                    if (n_grid(k,j,l)==1) then
+                        n_grid(k,j,l)=0
+                        sum_grid_v(:,k,j,l)=0
+                    end if
+                    write(coord_velo_file,'(4I6,3ES18.4)')num,l,j,k,sum_grid_v(:,k,j,l)/n_grid(k,j,l)
+                    !write(*,*)sum_grid_v(:,j,k),n_grid(j,k)
+                enddo
             enddo
         enddo
     end subroutine
@@ -1025,6 +1054,15 @@ contains
         n_grid=0
     end subroutine
 
+    subroutine output_date()
+        implicit none
+        integer d(8)
+
+        call date_and_time(values=d)
+        write (*,'(I5,A,I2.2,A,I2.2,A,I2.2,A,I2.2,A,I2.2,A,I3.3)') &
+            d(1),'-',d(2),'-',d(3),'/',d(5),':',d(6),':',d(7),'.',d(8)
+    end subroutine
+
 end module parameters
 
 program Poisellie_field
@@ -1032,7 +1070,7 @@ program Poisellie_field
     implicit none
     integer :: cur_step,output_file,energy_file,production_file,velocity_file,coord_velo_file
     integer i,j,k,h_p
-    real(8) :: EK_scaled,T_scaled,r,t
+    real(8) :: EK_scaled,T_scaled,r,t,t0
     character (4) filename
     output_file=912
     energy_file=913
@@ -1043,12 +1081,14 @@ program Poisellie_field
 
     call readin()
 
-    call get_time(t)
+    call get_time(t0)
+    time0=t0
+    write(*,*) 'begin at'
+    call output_date()
+    write(*,*)
 
     box_size = [n_cell_x, n_cell_y, n_cell_z]
-    half_box_size(3) = n_cell_z/2d0
     box_size_unit=1.0
-    half_box_size_unit=box_size_unit/2
 
     !!!读链的大小 改成1个文件
     write(filename,'(I4)') floor(BEND_b)
@@ -1057,6 +1097,7 @@ program Poisellie_field
     open(production_file,file='dump.'//trim(adjustl(filename))//'.lammpstrj')
     open(velocity_file,file='velocity_radius')
     open(coord_velo_file,file='coordinate_velocity')
+
     call init()
     call thermostat_init()
     call output(output_file,0,equili_interval_step)
@@ -1080,11 +1121,12 @@ program Poisellie_field
     ! 没有外场时，polymer和solution达到平衡
     call update_force(0)
     f_s=0
+    t=0
     write(*,*) ''
     write(*,*)'Equilibrium begin:'
     write(*,'(A7,6A12)') 'step', 'BEND','FENE','LJ','total','T_scaled','time'
     write(*,*) '-------------------------------------------------------------------------------'
-    write(*,'(I7,5F12.3)') 0, U_BEND, U_FENE, U_LJ, U,T_scaled
+    write(*,'(I7,6F12.3)') 0, U_BEND, U_FENE, U_LJ, U,T_scaled,t
 
     call clear_stat()
     do cur_step=1,equili_step
@@ -1107,11 +1149,11 @@ program Poisellie_field
 
     call clear_stat()
     do cur_step=1,total_step
-        !        do i=1,n_s
-        !            if (x_s(3,i)>=-n_cell_z/2d0 .and. x_s(3,i)<-n_cell_z/2d0+2d0) then
-        v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
-        !            end if
-        !        end do
+!        do i=1,n_s
+!            if (x_s(i,3)>=-25 .and. x_s(i,3)<-23) then
+                v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+!            end if
+!        end do
 
         call one_step(cur_step, output_interval_step,production_file)
         call stat_velocity(cur_step)
@@ -1124,6 +1166,11 @@ program Poisellie_field
     close(production_file)
     close(velocity_file)
     close(coord_velo_file)
+    write(*,*)
+    write(*,*) 'end at'
+    call output_date()
+    call get_time(t)
+    write(*,*) 'elapsed time is', t-t0, 's'
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 end program Poisellie_field

@@ -1,5 +1,7 @@
 module shape_t_tube
     use shape_all
+    real(8) sum_v(2,0:100,0:400),sum_grid_v(2,0:100,0:400)
+    integer n(0:100,0:400),n_grid(0:100,0:400)
 contains
 
     subroutine report()
@@ -225,6 +227,47 @@ contains
             endif
         enddo
         !$omp end parallel do
+    end subroutine
+
+    subroutine clear_stat()
+        sum_v=0
+        n=0
+        sum_grid_v=0
+        n_grid=0
+    end subroutine
+
+        subroutine stat_velocity(cur_step,interval_step)
+        implicit none
+        integer cur_step,interval_step
+        integer i,j,k
+        real(8) r
+        if(mod(cur_step,1)==0)then
+            do i=1,n_s
+                j=floor(x_s(2,i)*2+n_cell_y)
+                k=floor(x_s(3,i)*2+n_cell_z)
+                sum_grid_v(1,j,k)=sum_grid_v(1,j,k)+v_s(2,i)
+                sum_grid_v(2,j,k)=sum_grid_v(2,j,k)+v_s(3,i)
+                n_grid(j,k)=n_grid(j,k)+1
+            enddo
+        endif
+
+    end subroutine
+
+    subroutine output_velocity(num,velocity_file,coord_velo_file,step,interval_step)
+        implicit none
+        integer num, velocity_file,coord_velo_file,step,interval_step
+        integer k,j
+
+        do j=n_cell_y,2*n_cell_y-1
+            do k=0,2*n_cell_z-1
+                sum_grid_v(:,j,k)=sum_grid_v(:,j,k)/(step/1)
+                if (n_grid(j,k)==1) then
+                    n_grid(j,k)=0
+                    sum_grid_v(:,j,k)=0
+                end if
+                write(coord_velo_file,'(3I6,2ES18.4)')num,j,k,sum_grid_v(:,j,k)/n_grid(j,k)
+            enddo
+        enddo
     end subroutine
 
 end module

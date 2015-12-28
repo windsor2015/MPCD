@@ -1,5 +1,7 @@
 module shape_t_tube1
     use shape_all
+    integer n(0:100,0:400),n_grid(0:100,0:100,0:400)
+    real(8) sum_v(3,0:100,0:400),sum_grid_v(3,0:100,0:100,0:400)
 contains
 
     subroutine report()
@@ -178,10 +180,10 @@ contains
             endif
         enddo
 
-        if (debug==1)then
-            write(*,*) 't',t
-            write(*,*) 'min_t',mint,check
-        end if
+!        if (debug==1)then
+!            write(*,*) 't',t
+!            write(*,*) 'min_t',mint,check
+!        end if
 
         !return
         !    call cross_border(x,check_cylinder,check_plane)
@@ -241,4 +243,56 @@ contains
         enddo
         !$omp end parallel do
     end subroutine
+
+    subroutine clear_stat()
+        sum_v=0
+        n=0
+        sum_grid_v=0
+        n_grid=0
+    end subroutine
+
+        subroutine stat_velocity(cur_step,interval_step)
+        implicit none
+        integer cur_step,interval_step
+        integer i,j,k,l
+
+        if(mod(cur_step,1)==0)then
+            do i=1,n_s
+                !if (.not. in_pipe(x_s(:,i))) cycle
+                !if(x_s(2,i)>-0.25.and.x_s(2,i)<0.25)then
+                l=floor(x_s(1,i)*2+n_cell_x)
+                j=floor(x_s(2,i)*2+n_cell_y)
+                k=floor(x_s(3,i)*2+n_cell_z)
+                sum_grid_v(1,k,j,l)=sum_grid_v(1,k,j,l)+v_s(1,i)
+                sum_grid_v(2,k,j,l)=sum_grid_v(2,k,j,l)+v_s(2,i)
+                sum_grid_v(3,k,j,l)=sum_grid_v(3,k,j,l)+v_s(3,i)
+                n_grid(k,j,l)=n_grid(k,j,l)+1
+                !if (j==33.and.k==74) write(*,*) x_s(:,i),v_s(:,i), i
+                !end if
+                !write(*,*)j,k
+            enddo
+        endif
+
+    end subroutine
+
+    subroutine output_velocity(num,velocity_file,coord_velo_file,step,interval_step)
+        implicit none
+        integer num, velocity_file,coord_velo_file,step,interval_step
+        integer k,j,l
+
+        do l=0,2*n_cell_x-1
+            do j=n_cell_y,2*n_cell_y-1
+                do k=0,2*n_cell_z-1
+                    sum_grid_v(:,k,j,l)=sum_grid_v(:,k,j,l)/(step/1)
+                    if (n_grid(k,j,l)==1) then
+                        n_grid(k,j,l)=0
+                        sum_grid_v(:,k,j,l)=0
+                    end if
+                    write(coord_velo_file,'(4I6,3ES18.4)')num,l,j,k,sum_grid_v(:,k,j,l)/n_grid(k,j,l)
+                    !write(*,*)sum_grid_v(:,j,k),n_grid(j,k)
+                enddo
+            enddo
+        enddo
+    end subroutine
+
 end module
