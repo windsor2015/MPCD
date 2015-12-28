@@ -1,4 +1,4 @@
-module shape_cylinder
+module shape_funnel
     use shape_all
     real(8) sum_v(0:100,0:400),sum_grid_v(2,0:100,0:400)
     integer n(0:100,0:400),n_grid(0:100,0:400)
