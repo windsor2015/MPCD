@@ -1,4 +1,4 @@
-module shape_cylinder
+module shape_funnel
     use shape_all
     real(8) sum_v(0:100,0:400),sum_grid_v(2,0:100,0:400)
     integer n(0:100,0:400),n_grid(0:100,0:400)
@@ -33,7 +33,7 @@ contains
             in_pipe_phantom=r<=radius(2)+d
         elseif(abs(x(3))<n_cell_z*ratio_y/2d0.and.abs(x(3))>n_cell_z*ratio_z/2d0) then
             theta=(radius(1)-radius(2))/(n_cell_z*ratio_y/2d0-n_cell_z*ratio_z/2d0)
-            in_pipe=r<=(abs(x(3))-n_cell_z*ratio_z/2d0)*theta + radius(2) + d
+            in_pipe_phantom=r<=(abs(x(3))-n_cell_z*ratio_z/2d0)*theta + radius(2) + d
         else
             in_pipe_phantom=r<=radius(1)+d
         end if
@@ -43,7 +43,7 @@ contains
     real(8) function get_pipe_volume()
         implicit none
         get_pipe_volume=pi*radius(1)**2*(1d0-ratio_y)*n_cell_z+pi*radius(2)**2*ratio_z*n_cell_z+ &
-                        pi*n_cell_z*(ratio_y-ratio_z)*(radius(1)**2+radius(2)**2+radius(1)*radius(2))/6d0
+            pi*n_cell_z*(ratio_y-ratio_z)*(radius(1)**2+radius(2)**2+radius(1)*radius(2))/6d0
     end function
 
     real(8) function get_pipe_phantom_volume()
@@ -67,15 +67,15 @@ contains
         z=x(3)
         theta=(radius(1)-radius(2))/(n_cell_z*ratio_y/2d0-n_cell_z*ratio_z/2d0)
         if (r>radius(1).or.(r>radius(2).and.abs(z)<n_cell_z*ratio_z/2d0).or. &
-           (r>((abs(x(3))-n_cell_z*ratio_z/2d0)*theta + radius(2)).and.abs(z)<n_cell_z*ratio_y/2d0.and.abs(z)>n_cell_z*ratio_z/2d0))then
+                (r>((abs(x(3))-n_cell_z*ratio_z/2d0)*theta + radius(2)).and.abs(z)<n_cell_z*ratio_y/2d0.and.abs(z)>n_cell_z*ratio_z/2d0))then
             get_region=0
             return
         endif
-        if (ratio_z>0d0.and.z<=-n_cell_z*ratio_y/2d0)then
+        if (ratio_z>0d0.and.z<=-n_cell_z*ratio_z/2d0)then
             get_region=2
             return
         endif
-        if (ratio_z>0d0.and.z>=n_cell_z*ratio_y/2d0)then
+        if (ratio_z>0d0.and.z>=n_cell_z*ratio_z/2d0)then
             get_region=3
             return
         endif
@@ -117,7 +117,7 @@ contains
     subroutine cross(x,x0,xc,normal)
         implicit none
         real(8),dimension(3):: x, x0, xc, normal, xm
-        real(8) t(4), a, b, c, r(2), delta, xc_list(3,4), normal_list(3,4), mint
+        real(8) t(4), a, b, c, r, delta, xc_list(3,4), normal_list(3,4), mint,z,z0,a0,b0,c0,cc,theta,t1,t2
         logical check(4)
         integer i
         !!越界与界面的交点
@@ -132,39 +132,66 @@ contains
         delta=b**2-4*a*c
         if (delta>=0) t(1)=(-b+sqrt(delta))/(2*a)
         if(ratio_z==0d0)then
-                    xc=x0+xm*t(1)
-                    normal(1:2)=-xc(1:2)
-         endif
+            xc=x0+xm*t(1)
+            normal(1:2)=-xc(1:2)
+        endif
 
         if(ratio_z>0d0)then
-        ! 第2类，x3=-n_cell_z*ratio_z/2d0
-        t(2)=(-n_cell_z*ratio_z/2d0-x0(3))/xm(3)
 
-        ! 第3类，x3=n_cell_z*ratio_z/2d0
-        t(3)=(n_cell_z*ratio_z/2d0-x0(3))/xm(3)
+            theta=(radius(1)-radius(2))/n_cell_z/(ratio_y-ratio_z)*2d0
+            z=radius(1)/theta!/(radius(1)-radius(2))
+            z0=n_cell_z*ratio_y/2d0-z
 
-        ! 第4类，小圆交点
-        c=x0(1)**2+x0(2)**2-radius(2)**2
+            ! 第2类，右侧锥面
+            a0=xm(1)**2+xm(2)**2-xm(3)**2*theta**2
+            b0=2d0*(xm(1)*x0(1)+xm(2)*x0(2)-xm(3)*(x0(3)-z0)*theta**2)
+            c0=x0(1)**2+x0(2)**2-(x0(3)-z0)**2*theta**2
+            delta=b0**2-4*a0*c0
+            ! 应取较小的正解
+            if (delta>=0) then
+                t1=(-b0-sqrt(delta))/(2*a0)
+                t2=(-b0+sqrt(delta))/(2*a0)
+                t(2)=min(t1,t2)
+                if (t(2)<=0) t(2)=max(t1,t2)
+            endif
+            ! 第3类，左侧锥面
+            b0=2d0*(xm(1)*x0(1)+xm(2)*x0(2)-xm(3)*(x0(3)+z0)*theta**2)
+            c0=x0(1)**2+x0(2)**2-(x0(3)+z0)**2*theta**2
+            delta=b0**2-4*a0*c0
+            ! 应取较小的正解
+            if (delta>=0) then
+                t1=(-b0-sqrt(delta))/(2*a0)
+                t2=(-b0+sqrt(delta))/(2*a0)
+                t(3)=min(t1,t2)
+                if (t(3)<=0) t(3)=max(t1,t2)
+            endif
 
-        delta=b**2-4*a*c
-        if (delta>=0) t(4)=(-b+sqrt(delta))/(2*a)
+            ! 第4类，小圆交点
+            c=x0(1)**2+x0(2)**2-radius(2)**2
+            delta=b**2-4*a*c
+            if (delta>=0) t(4)=(-b+sqrt(delta))/(2*a)
 
-        do i=1,4
-            xc_list(:,i)=x0+xm*t(i)
-        enddo
+            do i=1,4
+                xc_list(:,i)=x0+xm*t(i)
+            enddo
 
-        ! 4种法线
-        normal_list(1:2,1)=-xc_list(1:2,1)
-        normal_list(1:2,4)=-xc_list(1:2,4)
-        normal_list(3,2)=1
-        normal_list(3,3)=-1
+            ! 3种法线
+            normal_list(1:2,1)=xc_list(1:2,1)
+            normal_list(1:2,4)=xc_list(1:2,4)
+            normal_list(1:2,2:3)=xc_list(1:2,2:3)
+            normal_list(3,2)=xc_list(3,2)-(xc_list(1,2)**2+xc_list(2,2)**2+(xc_list(3,2)-z0)**2)/(xc_list(3,2)-z0)-z0
+            normal_list(3,3)=xc_list(3,3)-(xc_list(1,3)**2+xc_list(2,3)**2+(xc_list(3,3)-z0)**2)/(xc_list(3,3)-z0)-z0
 
-        ! 4类边界的范围
-        check(1)=abs(xc_list(3,1))>=n_cell_z*ratio_z/2d0
-        r(1:2)=sqrt(xc_list(1,2:3)**2+xc_list(2,2:3)**2)
-        check(2:3)=r(1:2)<radius(1) .and. r(1:2)>radius(2)
+            ! 3类边界的范围
+            check(1)=abs(xc_list(3,1))>=n_cell_z*ratio_y/2d0
 
-        check(4)=abs(xc_list(3,4))<=n_cell_z*ratio_z/2d0
+            check(2)=xc_list(3,2)<n_cell_z*ratio_y/2d0 .and. &
+                xc_list(3,2)>n_cell_z*ratio_z/2d0
+
+            check(3)=xc_list(3,3)>-n_cell_z*ratio_y/2d0 .and. &
+                xc_list(3,3)<-n_cell_z*ratio_z/2d0
+
+            check(4)=abs(xc_list(3,4))<=n_cell_z*ratio_z/2d0
 
             mint=1
             do i=1,4
@@ -174,7 +201,15 @@ contains
                     mint=t(i)
                 endif
             enddo
-       endif
+            if(debug==1)then
+                write(*,*) 'x0,x,xc,normal'
+                write(*,*) x0,x,xc,normal
+                !write(*,*) xc_list
+                write(*,*) 't',t
+                write(*,*)
+            end if
+
+        endif
         !return
         !    call cross_border(x,check_cylinder,check_plane)
         !    if(check_cylinder)then
@@ -211,16 +246,19 @@ contains
             ! 越界则回弹
             if (get_region(x(:,i))/=get_region(x0(:,i))) then
                 c=0
+                debug=0
+                !if (i==3843) debug=1
                 do while(.not. in_pipe(x(:,i)))
                     call do_ba(x(:,i),x0(:,i),v(:,i))
                     c=c+1
-                    !                    if (c>2) then
-                    !                        write(*,*)c,i
-                    !                        write(*,*)x0(:,i)
-                    !                        write(*,*)x(:,i)
-                    !                        write(*,*)norm2(x0(1:2,i)),norm2(x(1:2,i))
-                    !                        debug=1
-                    !                    end if
+!                    if (debug==1) then
+!                        write(*,*) x(:,i)
+!                    endif
+!                    if (c>2) then
+!                        write(*,*)i
+!                        debug=1
+!                        if (c>=10) stop
+!                    end if
                 enddo
             endif
         enddo

@@ -10,7 +10,7 @@ module shape_all
 #endif
     ! 下标约定: p - polymer, s - solution, b - boundary / phantom
     !结构
-    integer, parameter :: n_cell_x=10, n_cell_y=20, n_cell_z=40, n_p = 30
+    integer, parameter :: n_cell_x=10, n_cell_y=20, n_cell_z=40, n_p = 40
 
     integer :: string_form = 0,  n_b, n_s
 

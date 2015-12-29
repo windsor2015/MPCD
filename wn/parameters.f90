@@ -5,6 +5,8 @@ module parameters
     use shape_t_tube
 #elif defined (_T_TUBE1)
     use shape_t_tube1
+#elif defined (_FUNNEL)
+    use shape_funnel
 #else
     use shape_cylinder
 #endif
