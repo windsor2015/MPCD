@@ -1,12 +1,16 @@
 &basic
-gama=0.01
-density_s=5
+gama=0.001
+density_s=5d0
+BEND_b=10d0
+ratio_y=0.5d0
+ratio_z=0.25d0
+radius=4d0,1d0
 
 desk_interval_step=1000
-equili_step=500
+equili_step=50000
 equili_interval_step=1000
-total_step=500000
-output_interval_step=1000
+total_step=2000000
+produ_interval_step=1000
 
 thermostat_method=12, thermostat_interval=10, thermostat_B_parameter=1d-4, thermostat_A_parameter=1d-3
 ! all particles:
@@ -16,11 +20,12 @@ thermostat_method=12, thermostat_interval=10, thermostat_B_parameter=1d-4, therm
 
 ! 0 and 1 never change the momentum directions, 2 never keeps the previous momentum
 
-string_form=0
+string_form=1
 ! 0: normal, 1: knot3,1
 
-BEND_b=10
+output_sketch=1
 
+field_interval=10000
 
 production_filename='dump.production.lammpstrj'
 

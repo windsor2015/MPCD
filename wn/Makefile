@@ -11,6 +11,7 @@ main.f90 \
 shape_t_tube1.f90 \
 shape_all.f90 \
 shape_cylinder.f90 \
+shape_funnel.f90 \
 parameters.f90 \
 shape_t_tube.f90
 
@@ -22,20 +23,21 @@ main.o \
 shape_t_tube1.o \
 shape_all.o \
 shape_cylinder.o \
+shape_funnel.o \
 parameters.o \
 shape_t_tube.o
 
 SRC_DIR_d1 =
 
 SRC_DIR_f90d1 =
-OBJS_DIR = obj/Release/
+OBJS_DIR = obj/
 EXE_DIR = ./
 
 EXE = wn
 FC = ifort
 IDIR =
 CFLAGS = -fpp -openmp -O3 -finline-functions -funroll-loops -I. -ipo -xHost -mkl -module $(OBJS_DIR)
-LFLAGS = -O3 -openmp -L. -s -mkl -ipo -xHost
+LFLAGS = -O3 -L. -s -mkl -ipo -xHost -openmp
 LIBS =
 
 VPATH = $(SRC_DIR_d1):$(OBJS_DIR):$(SRC_DIR_f90d1):$(OBJS_DIR)
@@ -43,14 +45,23 @@ OBJS = $(addprefix $(OBJS_DIR), $(OBJS_d1) $(OBJS_f90d1))
 
 all : $(EXE)
 
+all3 : clean cylinder clean t-tube clean t-tube1
+
 cylinder : FC=ifort -D_CYLINDER
+cylinder : EXE=wn_cylinder
 cylinder : all
 
 t-tube : FC=ifort -D_T_TUBE
+t-tube : EXE=wn_t_tube
 t-tube : all
 
 t-tube1 : FC=ifort -D_T_TUBE1
+t-tube1 : EXE=wn_t_tube1
 t-tube1 : all
+
+funnel : FC=ifort -D_FUNNEL
+funnel : EXE=wn_funnel
+funnel : all
 
 $(EXE) : $(OBJS_f90d1)
 	@mkdir -p $(EXE_DIR)
@@ -80,8 +91,12 @@ parameters.o: \
     parameters.f90 \
     shape_cylinder.o \
     shape_t_tube.o \
-    shape_t_tube1.o
+    shape_t_tube1.o \
+    shape_funnel.o
 shape_t_tube.o: \
     shape_t_tube.f90 \
+    shape_all.o
+shape_funnel.o: \
+    shape_funnel.f90 \
     shape_all.o
 

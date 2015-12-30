@@ -88,13 +88,20 @@ contains
         real(8) d,t
         ! 获取交点和法线
         call cross(x,x0,xc,normal)
-
+        if (1==debug) then
+            write(*,*) x0,x,xc
+        endif
         d=-dot_product(xc,normal)
         t=(dot_product(normal,x)+d)/norm2(normal)
 
         x=x-2*t*normal
         x0=xc+(x-xc)*1d-8
         v=norm2(v)/norm2(x-xc)*(x-xc)
+        if (debug==1) then
+            !write(*,*) 'x'
+            write(*,*) x,norm2(x(1:2))
+            !write(*,*) d,t
+        end if
 
         !return
         !这里没看太懂
@@ -180,7 +187,7 @@ contains
             normal_list(1:2,4)=xc_list(1:2,4)
             normal_list(1:2,2:3)=xc_list(1:2,2:3)
             normal_list(3,2)=xc_list(3,2)-(xc_list(1,2)**2+xc_list(2,2)**2+(xc_list(3,2)-z0)**2)/(xc_list(3,2)-z0)-z0
-            normal_list(3,3)=xc_list(3,3)-(xc_list(1,3)**2+xc_list(2,3)**2+(xc_list(3,3)-z0)**2)/(xc_list(3,3)-z0)-z0
+            normal_list(3,3)=xc_list(3,3)-(xc_list(1,3)**2+xc_list(2,3)**2+(xc_list(3,3)+z0)**2)/(xc_list(3,3)+z0)+z0
 
             ! 3类边界的范围
             check(1)=abs(xc_list(3,1))>=n_cell_z*ratio_y/2d0
@@ -202,11 +209,11 @@ contains
                 endif
             enddo
             if(debug==1)then
-                write(*,*) 'x0,x,xc,normal'
-                write(*,*) x0,x,xc,normal
+                !write(*,*) 'x0,x,xc,normal'
+                !write(*,*) x0,x,xc,normal
                 !write(*,*) xc_list
-                write(*,*) 't',t
-                write(*,*)
+                !write(*,*) 't',t
+                !write(*,*)
             end if
 
         endif
@@ -247,18 +254,19 @@ contains
             if (get_region(x(:,i))/=get_region(x0(:,i))) then
                 c=0
                 debug=0
-                !if (i==3843) debug=1
+                !if (i==2251) debug=1
                 do while(.not. in_pipe(x(:,i)))
                     call do_ba(x(:,i),x0(:,i),v(:,i))
                     c=c+1
-!                    if (debug==1) then
-!                        write(*,*) x(:,i)
-!                    endif
-!                    if (c>2) then
-!                        write(*,*)i
-!                        debug=1
-!                        if (c>=10) stop
-!                    end if
+                    !                    if (debug==1) then
+                    !                        write(*,*) x(:,i)
+                    !                    endif
+                    if (c>2) then
+                        !write(*,*)i,c
+                        !write(*,*)x(:,i)
+                        !debug=1
+                        !if (c>=10) stop
+                    end if
                 enddo
             endif
         enddo

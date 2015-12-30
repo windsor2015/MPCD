@@ -3,7 +3,7 @@ program Poisellie_field
 
     implicit none
     integer :: cur_step,equi_file,energy_file,produ_file,velocity_file,coord_velo_file
-    integer i,j,k,h_p
+    integer i,j,k,h_p,flag0,flag1
     real(8) :: EK_scaled,T_scaled,r,t,t0,tc0,tc1
 
     equi_file=912
@@ -11,6 +11,8 @@ program Poisellie_field
     produ_file=914
     velocity_file=915
     coord_velo_file=916
+    flag0=0
+    flag1=1
 
     call report()
     call readin()
@@ -53,7 +55,7 @@ program Poisellie_field
     write(*,*) 'Initial scaled temperature T_scaled: ',T_scaled
 
     ! 没有外场时，polymer和solution达到平衡
-    call update_force(0)
+    call update_force(0,0)
 
     t=0
     write(*,*) ''
@@ -65,7 +67,7 @@ program Poisellie_field
     call clear_stat()
     do cur_step=1,equili_step
         ! write(*,*) U
-        call one_step(cur_step,equili_interval_step, equi_file)
+        call one_step(cur_step,equili_interval_step, equi_file, 0)
         call stat_velocity(cur_step,equili_interval_step)
     enddo
     call output_velocity(1,velocity_file,coord_velo_file, equili_step,equili_interval_step)
@@ -75,7 +77,7 @@ program Poisellie_field
 
     !!! compute a(t-dt)
 
-    call update_force(0)
+    call update_force(0,1)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     write(*,'(A7,6A12)') 'step', 'BEND','FENE','LJ', 'total','T_scaled','time'
 
@@ -87,11 +89,15 @@ program Poisellie_field
         !write(*,*) -n_cell_z/2d0,-n_cell_z/2d0+2d0,x_s(3,i)
         !    if (x_s(3,i)>=-n_cell_z/2d0 .and. x_s(3,i)<=-n_cell_z/2d0+2d0) then
         !   if (x_s(2,i)>n_cell_y*(1d0-ratio_y)/2d0) then
-        v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+
+        if (mod(cur_step, field_interval*2)<=field_interval) then
+            v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
+        end if
+
         !   end if
         !end do
 
-        call one_step(cur_step, produ_interval_step,produ_file)
+        call one_step(cur_step, produ_interval_step,produ_file,1)
         call stat_velocity(cur_step,produ_interval_step)
     enddo
     call output_velocity(2,velocity_file,coord_velo_file,total_step,produ_interval_step)

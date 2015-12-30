@@ -48,6 +48,9 @@ contains
 #elif defined (_T_TUBE1)
                 x_p(2,1)=n_cell_y*(1d0-ratio_y)/2d0+n_cell_y*ratio_y/4d0
                 x_p(3,1)=-n_cell_z/2d0+1d0
+#elif defined (_FUNNEL)
+                x_p(2,1)=0
+                x_p(3,1)=-n_cell_z/2d0
 #else
                 x_p(2,1)=0d0
                 x_p(3,1)=-n_cell_z/2d0+2d0
@@ -90,7 +93,7 @@ contains
                         endif
 #elif defined (_T_TUBE1)
                         if(abs(x_p(1,i))>n_cell_x/2d0 .or. &
-                               ((x_p(2,i)<0.or.x_p(2,i)>n_cell_y/2d0).and.abs(x_p(3,i))<=n_cell_z*ratio_z/2d0) &
+                                ((x_p(2,i)<0.or.x_p(2,i)>n_cell_y/2d0).and.abs(x_p(3,i))<=n_cell_z*ratio_z/2d0) &
                                 .or.((x_p(2,i)<n_cell_y*(1d0-ratio_y)/2d0.or.x_p(2,i)>n_cell_y/2d0).and. &
                                 abs(x_p(3,i))>n_cell_z*ratio_z/2d0)) then
                             cycle
@@ -132,6 +135,9 @@ contains
 #elif defined (_T_TUBE1)
                     x_p(2,i)=-sin(3*t)+(1d0-ratio_y)*n_cell_y/2d0+ratio_y*n_cell_y/4d0
                     x_p(3,i)=cos(t)-2*cos(2*t)-n_cell_z*ratio_z
+#elif defined (_FUNNEL)
+                    x_p(2,i)=cos(t)-2*cos(2*t)
+                    x_p(3,i)=-sin(3*t)-n_cell_z/2
 #else
                     x_p(2,i)=cos(t)-2*cos(2*t)
                     x_p(3,i)=-sin(3*t)-n_cell_z*ratio_z
@@ -238,9 +244,21 @@ contains
         U=U+BEND_b*(1+c)
     end subroutine
 
-    subroutine update_force(mode)
+    subroutine exter(f,flag)
         implicit none
-        integer mode, i, j
+        real(8) f
+        integer flag
+        if(flag==0)then
+            f=f+0
+        elseif(flag==1)then
+            f=f+0.1
+        end if
+
+    end subroutine
+
+    subroutine update_force(mode,flag)
+        implicit none
+        integer mode, i, j,flag
         real(8) temp(3)
 
         f_p=0
@@ -272,6 +290,7 @@ contains
 
         enddo
         !$omp end parallel do
+        call exter(f_p(3,1),flag)
 
         U=U_FENE+U_BEND+U_LJ
 
@@ -650,7 +669,7 @@ contains
             write(output_file,*)'ITEM:TIMESTEP'
             write(output_file,'(I9)')cur_step
             write(output_file,*)'ITEM:NUMBER OF ATOMS'
-            write(output_file,'(I6)')n_p+n_s+n_b
+            write(output_file,'(I6)')n_p+n_s!+n_b
             write(output_file,*)'ITEM:BOX BOUNDS'
             write(output_file,'(2F7.1)')-n_cell_x/2d0-1,n_cell_x/2d0+1
             write(output_file,'(2F7.1)')-n_cell_y/2d0-1,n_cell_y/2d0+1
@@ -658,13 +677,13 @@ contains
             write(output_file,*)'ITEM:ATOMS id type x y z'
 
             do k=1,n_p
-                write(output_file,'(2I6,3F13.4)') k,1,x_p(:,k)
+                write(output_file,'(2I6,3F9.4)') k,1,x_p(:,k)
             enddo
             do k=1,n_s
-                write(output_file,'(2I6,3F13.4)') n_p+k,2,x_s(:,k)
+                write(output_file,'(2I6,3F9.4)') n_p+k,2,x_s(:,k)
             enddo
             do k=1,n_b
-                write(output_file,'(2I6,3F13.4)') n_p+n_s+k,3,x_b(:,k)
+                !write(output_file,'(2I6,3F9.4)') n_p+n_s+k,3,x_b(:,k)
             enddo
         endif
 
@@ -679,19 +698,19 @@ contains
     end subroutine
 
 
-    subroutine one_step(cur_step,interval_step,output_file)
+    subroutine one_step(cur_step,interval_step,output_file,flag)
         implicit none
 
-        integer cur_step, output_file, i, interval_step
+        integer cur_step, output_file, i, interval_step,flag
         real(8) :: EK_scaled,T_scaled,t
 
         ! solvent
         x0_s=x_s
         x_s = x_s + v_s*time_step_s
 
-            call bounce_back(x_s,x0_s,v_s,n_s)
-
+        call bounce_back(x_s,x0_s,v_s,n_s)
         call periodic_s()
+
         ! polymer chain
         do i=1,int(time_step_s/time_step_p)
 
@@ -701,7 +720,7 @@ contains
             call bounce_back(x_p,x0_p,v_p,n_p)
 
             call periodic_p()
-            call update_force(1)
+            call update_force(1,flag)
             v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
             f0_p=f_p
         enddo
@@ -713,12 +732,95 @@ contains
             call Ek_T(EK_scaled, T_scaled)
             call get_time(t)
             write(*,'(I7,6F12.3)') cur_step,U_BEND,U_FENE,U_LJ,U,T_scaled,t-time0
+            if (output_sketch/=0) then
+                call output_sketch_sub()
+            end if
             time0=t
         endif
 
         call output(output_file,cur_step,interval_step)
         !call output_U(energy_file,cur_step,interval_step)
     end subroutine
+
+
+    subroutine output_sketch_sub()
+        implicit none
+        integer x_p_2d(n_p)
+        integer i,j,k,l,x_p_int(2,n_p)
+
+        x_p_int(1,:)=int(-x_p(2,:)*2)+9
+        x_p_int(2,:)=int(x_p(3,:)*2)+41
+        x_p_2d=x_p_int(1,:)*10000+x_p_int(2,:)
+
+        do i=1,n_p-1
+            do j=i+1,n_p
+                if (x_p_2d(i)>x_p_2d(j)) call swap(x_p_2d(i),x_p_2d(j))
+            end do
+        end do
+
+        x_p_int(1,:)=x_p_2d/10000
+        x_p_int(2,:)=mod(x_p_2d,10000)
+
+        k=1
+        do i=1,16
+            do j=1,80
+                if (x_p_int(1,k)==i .and. x_p_int(2,k)==j) then
+                    write(*,'(A,$)') '*'
+                    !k=k+1
+                    do l=k,n_p
+                        if (x_p_int(2,l)/=x_p_int(2,k)) then
+                            k=l
+                            exit
+                        end if
+                    end do
+
+                    if (k>n_p) exit
+                else
+                    write(*,'(A,$)') ' '
+                endif
+            enddo
+            write(*,*)
+        enddo
+
+        !write(*,*) x_p_int
+        !stop
+
+    end subroutine
+
+    ! 交换
+    subroutine swap(a,b)
+        integer a,b,c
+        c=a
+        a=b
+        b=c
+    end subroutine
+
+    ! 快速排序
+    recursive subroutine quick_sort(v,n,s,e)
+        integer v(n),key
+        integer n,s,e,l,r,m
+
+        l=s
+        r=e
+        m=(s+e)/2
+        if (l>=r) return
+        key=v(m)
+        do while (l<r)
+            do while(v(l)<key)
+                l=l+1
+            enddo
+            do while(v(r)>key)
+                r=r-1
+            enddo
+            if (l<r) then
+                call swap(v(l),v(r))
+            endif
+        enddo
+
+        call quick_sort(v,n,s,l-1)
+        call quick_sort(v,n,r+1,e)
+    end subroutine
+
 
     subroutine get_time(t)
         implicit none

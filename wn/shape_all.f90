@@ -56,10 +56,14 @@ module shape_all
     character(50) :: equili_filename='dump.equili.lammpstrj'
     character(50) :: production_filename='dump.production.lammpstrj'
 
+    integer :: output_sketch = 0
+    integer :: field_interval = 0
+
     namelist /basic/ gama, density_s, &
         desk_interval_step, equili_step, equili_interval_step, total_step, produ_interval_step, &
         thermostat_method, thermostat_interval, thermostat_B_parameter,thermostat_A_parameter, &
-        string_form, BEND_b, equili_filename, production_filename,radius,ratio_z,ratio_y
+        string_form, BEND_b, equili_filename, production_filename,radius,ratio_z,ratio_y, &
+        output_sketch, field_interval
 
 #ifdef __INTEL_COMPILER
     TYPE (VSL_STREAM_STATE) :: vsl_stream
