@@ -90,7 +90,7 @@ program Poisellie_field
         !    if (x_s(3,i)>=-n_cell_z/2d0 .and. x_s(3,i)<=-n_cell_z/2d0+2d0) then
         !   if (x_s(2,i)>n_cell_y*(1d0-ratio_y)/2d0) then
 
-        if (mod(cur_step, field_interval*2)<=field_interval) then
+        if (field_interval==0 .or. mod(cur_step, field_interval*2)<=field_interval) then
             v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         end if
 
