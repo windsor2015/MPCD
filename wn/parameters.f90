@@ -707,13 +707,13 @@ contains
             write(output_file,*)'ITEM:ATOMS id type x y z'
 
             do k=1,n_p
-                write(output_file,'(2I6,3F9.4)') k,1,x_p(:,k)
+                write(output_file,'(I6,I3,3F9.4)') k,1,x_p(:,k)
             enddo
             do k=1,n_s
-                write(output_file,'(2I6,3F9.4)') n_p+k,2,x_s(:,k)
+                write(output_file,'(I6,I3,3F9.4)') n_p+k,2,x_s(:,k)
             enddo
             do k=1,n_b
-                !write(output_file,'(2I6,3F9.4)') n_p+n_s+k,3,x_b(:,k)
+                !write(output_file,'(I6,I3,3F9.4)') n_p+n_s+k,3,x_b(:,k)
             enddo
         endif
 
