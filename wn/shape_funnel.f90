@@ -265,7 +265,10 @@ contains
                         !write(*,*)i,c
                         !write(*,*)x(:,i)
                         !debug=1
-                        !if (c>=10) stop
+                        if (c>=10) then
+                            write(*,*) i,'th particle is trapped'
+                            x(1:2,i)=0d0
+                        end if
                     end if
                 enddo
             endif

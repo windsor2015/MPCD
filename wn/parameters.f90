@@ -50,7 +50,7 @@ contains
                 x_p(3,1)=-n_cell_z/2d0+1d0
 #elif defined (_FUNNEL)
                 x_p(2,1)=0
-                x_p(3,1)=-n_cell_z/2d0
+                x_p(3,1)=-n_cell_z/2d0+2d0
 #else
                 x_p(2,1)=0d0
                 x_p(3,1)=-n_cell_z/2d0+2d0
@@ -137,7 +137,7 @@ contains
                     x_p(3,i)=cos(t)-2*cos(2*t)-n_cell_z*ratio_z
 #elif defined (_FUNNEL)
                     x_p(2,i)=cos(t)-2*cos(2*t)
-                    x_p(3,i)=-sin(3*t)-n_cell_z/2
+                    x_p(3,i)=-sin(3*t)-n_cell_z/2+5d0
 #else
                     x_p(2,i)=cos(t)-2*cos(2*t)
                     x_p(3,i)=-sin(3*t)-n_cell_z*ratio_z
@@ -232,16 +232,46 @@ contains
 
     subroutine BEND(f,U,rx1,rx2)
         implicit none
-        real(8) f(3), U, rx1(3), rx2(3), c, r1, r2
+        integer i
+        real(8) f(3,3), U, rx1(3), rx2(3), c, s, ss, r1, r2, small, d(3,3)
+        small=0.001
         !real(8), parameter :: BEND_b = 10
         rx1(3)=rx1(3)-n_cell_z*nint(rx1(3)/n_cell_z)
         rx2(3)=rx2(3)-n_cell_z*nint(rx2(3)/n_cell_z)
 
         r1=norm2(rx1)
         r2=norm2(rx2)
-        c=dot_product(rx1,rx2)/r1/r2
-        f=f-BEND_b*((rx1+rx2)/(r1*r2)-c*rx1/r1/r1-c*rx2/r2/r2)
+        c=-dot_product(rx1,rx2)/(r1*r2)
+
+   if((dble(1)-c**2)<=0)then
+   s=0
+   else
+   s=sqrt(dble(1)-c**2)
+   endif
+   if(c>dble(1))then
+   c=dble(1)
+   elseif(c<-dble(1))then
+   c=-dble(1)
+   endif
+   if(s<small)then
+   s=small
+   endif
+
+   s=1/s
+   ss=BEND_b*(-1/s)
+
+   d(:,1)=(-c*rx1*r2/r1-rx2)*s/(r2*r1)
+
+   d(:,2)=(c*(rx1*r2/r1-rx2*r1/r2)-rx1+rx2)*s/(r1*r2)
+
+   d(:,3)=(c*rx2*r1/r2+rx1)*s/(r1*r2)
+
+   f=f-ss*d
+
+!        c=dot_product(rx1,rx2)/r1/r2
+!        f=f-BEND_b*((rx1+rx2)/(r1*r2)-c*rx1/r1/r1-c*rx2/r2/r2)
         U=U+BEND_b*(1+c)
+
     end subroutine
 
     subroutine exter(f,flag)
@@ -251,7 +281,7 @@ contains
         if(flag==0)then
             f=f+0
         elseif(flag==1)then
-            f=f+0.1
+            f=f+0
         end if
 
     end subroutine
@@ -279,7 +309,7 @@ contains
                 call FENE(f_p(:,i),U_FENE,x_p(:,i)-x_p(:,i-1))
 
                 ! bend energy
-                call BEND(f_p(:,i),U_BEND,-x_p(:,i+1)+x_p(:,i),x_p(:,i)-x_p(:,i-1))
+                call BEND(f_p(:,i-1:i+1),U_BEND,x_p(:,i)-x_p(:,i-1),x_p(:,i+1)-x_p(:,i))
             endif
 
             do j=1,n_p
@@ -748,24 +778,25 @@ contains
         integer x_p_2d(n_p)
         integer i,j,k,l,x_p_int(2,n_p)
 
-        x_p_int(1,:)=int(-x_p(2,:)*2)+9
+        x_p_int(1,:)=int(-x_p(2,:))+5
         x_p_int(2,:)=int(x_p(3,:)*2)+41
         x_p_2d=x_p_int(1,:)*10000+x_p_int(2,:)
 
-        do i=1,n_p-1
-            do j=i+1,n_p
-                if (x_p_2d(i)>x_p_2d(j)) call swap(x_p_2d(i),x_p_2d(j))
-            end do
-        end do
+        call quick_sort(x_p_2d,n_p,1,n_p)
+        !do i=1,n_p-1
+        !    do j=i+1,n_p
+        !        if (x_p_2d(i)>x_p_2d(j)) call swap(x_p_2d(i),x_p_2d(j))
+        !    end do
+        !end do
 
         x_p_int(1,:)=x_p_2d/10000
         x_p_int(2,:)=mod(x_p_2d,10000)
 
         k=1
-        do i=1,16
+        do i=1,8
             do j=1,80
                 if (x_p_int(1,k)==i .and. x_p_int(2,k)==j) then
-                    write(*,'(A,$)') '*'
+                    write(*,'(A,$)') 'o'
                     !k=k+1
                     do l=k,n_p
                         if (x_p_int(2,l)/=x_p_int(2,k)) then
@@ -814,6 +845,8 @@ contains
             enddo
             if (l<r) then
                 call swap(v(l),v(r))
+                            if (v(r)==key) l=l+1
+            if (v(l)==key) r=r-1
             endif
         enddo
 
