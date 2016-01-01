@@ -185,6 +185,9 @@ contains
             end if
         enddo
 
+        min_y=minval(int(x_s(2,:)))
+        max_y=maxval(int(x_s(2,:)))
+
         write(*,*)"Solvent particle number: ", n_s
         write(*,*)"Total particle number: ", n_p+n_s
         write(*,*)"Phantom particle number: ", n_b
@@ -243,33 +246,33 @@ contains
         r2=norm2(rx2)
         c=-dot_product(rx1,rx2)/(r1*r2)
 
-   if((dble(1)-c**2)<=0)then
-   s=0
-   else
-   s=sqrt(dble(1)-c**2)
-   endif
-   if(c>dble(1))then
-   c=dble(1)
-   elseif(c<-dble(1))then
-   c=-dble(1)
-   endif
-   if(s<small)then
-   s=small
-   endif
+        if((dble(1)-c**2)<=0)then
+            s=0
+        else
+            s=sqrt(dble(1)-c**2)
+        endif
+        if(c>dble(1))then
+            c=dble(1)
+        elseif(c<-dble(1))then
+            c=-dble(1)
+        endif
+        if(s<small)then
+            s=small
+        endif
 
-   s=1/s
-   ss=BEND_b*(-1/s)
+        s=1/s
+        ss=BEND_b*(-1/s)
 
-   d(:,1)=(-c*rx1*r2/r1-rx2)*s/(r2*r1)
+        d(:,1)=(-c*rx1*r2/r1-rx2)*s/(r2*r1)
 
-   d(:,2)=(c*(rx1*r2/r1-rx2*r1/r2)-rx1+rx2)*s/(r1*r2)
+        d(:,2)=(c*(rx1*r2/r1-rx2*r1/r2)-rx1+rx2)*s/(r1*r2)
 
-   d(:,3)=(c*rx2*r1/r2+rx1)*s/(r1*r2)
+        d(:,3)=(c*rx2*r1/r2+rx1)*s/(r1*r2)
 
-   f=f-ss*d
+        f=f-ss*d
 
-!        c=dot_product(rx1,rx2)/r1/r2
-!        f=f-BEND_b*((rx1+rx2)/(r1*r2)-c*rx1/r1/r1-c*rx2/r2/r2)
+        !        c=dot_product(rx1,rx2)/r1/r2
+        !        f=f-BEND_b*((rx1+rx2)/(r1*r2)-c*rx1/r1/r1-c*rx2/r2/r2)
         U=U+BEND_b*(1+c)
 
     end subroutine
@@ -695,27 +698,27 @@ contains
         implicit none
         integer cur_step,step,output_file,k
 
-        if(mod(cur_step,step)==0)then
-            write(output_file,*)'ITEM:TIMESTEP'
-            write(output_file,'(I9)')cur_step
-            write(output_file,*)'ITEM:NUMBER OF ATOMS'
-            write(output_file,'(I6)')n_p+n_s!+n_b
-            write(output_file,*)'ITEM:BOX BOUNDS'
-            write(output_file,'(2F7.1)')-n_cell_x/2d0-1,n_cell_x/2d0+1
-            write(output_file,'(2F7.1)')-n_cell_y/2d0-1,n_cell_y/2d0+1
-            write(output_file,'(2F7.1)')-n_cell_z/2d0,n_cell_z/2d0
-            write(output_file,*)'ITEM:ATOMS id type x y z'
+        !if(mod(cur_step,step)==0)then
+        write(output_file,*)'ITEM:TIMESTEP'
+        write(output_file,'(I9)')cur_step
+        write(output_file,*)'ITEM:NUMBER OF ATOMS'
+        write(output_file,'(I6)')n_p+n_s!+n_b
+        write(output_file,*)'ITEM:BOX BOUNDS'
+        write(output_file,'(2F7.1)')-n_cell_x/2d0-1,n_cell_x/2d0+1
+        write(output_file,'(2F7.1)')-n_cell_y/2d0-1,n_cell_y/2d0+1
+        write(output_file,'(2F7.1)')-n_cell_z/2d0,n_cell_z/2d0
+        write(output_file,*)'ITEM:ATOMS id type x y z'
 
-            do k=1,n_p
-                write(output_file,'(I6,I3,3F9.4)') k,1,x_p(:,k)
-            enddo
-            do k=1,n_s
-                write(output_file,'(I6,I3,3F9.4)') n_p+k,2,x_s(:,k)
-            enddo
-            do k=1,n_b
-                !write(output_file,'(I6,I3,3F9.4)') n_p+n_s+k,3,x_b(:,k)
-            enddo
-        endif
+        do k=1,n_p
+            write(output_file,'(I6,I3,3F9.4)') k,1,x_p(:,k)
+        enddo
+        do k=1,n_s
+            write(output_file,'(I6,I3,3F9.4)') n_p+k,2,x_s(:,k)
+        enddo
+        do k=1,n_b
+            !write(output_file,'(I6,I3,3F9.4)') n_p+n_s+k,3,x_b(:,k)
+        enddo
+        !endif
 
     end subroutine
 
@@ -732,7 +735,7 @@ contains
         implicit none
 
         integer cur_step, output_file, i, interval_step,flag
-        real(8) :: EK_scaled,T_scaled,t
+        real(8) :: EK_scaled,T_scaled,t,min_z,min_z0,count_z
 
         ! solvent
         x0_s=x_s
@@ -746,6 +749,14 @@ contains
 
             x0_p=x_p
             x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
+
+            if (count(x_p(3,:)>0)>0 .and. count(x0_p(3,:)>0)>0) then
+                min_z=minval(x_p(3,:),x_p(3,:)>0)
+                min_z0=minval(x0_p(3,:),x0_p(3,:)>0)
+                if (min_z>=0.1 .and. min_z<0.1) then
+                    cross_flag=1
+                endif
+            endif
 
             call bounce_back(x_p,x0_p,v_p,n_p)
 
@@ -767,8 +778,10 @@ contains
             end if
             time0=t
         endif
-
-        call output(output_file,cur_step,interval_step)
+        if (mod(cur_step,interval_step)==0)then
+            call output(output_file,cur_step,interval_step)
+            if (cross_flag==1 .and. min_z>n_cell_z/3d0) cross_flag=2
+        endif
         !call output_U(energy_file,cur_step,interval_step)
     end subroutine
 
@@ -778,8 +791,11 @@ contains
         integer x_p_2d(n_p)
         integer i,j,k,l,x_p_int(2,n_p)
 
-        x_p_int(1,:)=int(-x_p(2,:))+5
-        x_p_int(2,:)=int(x_p(3,:)*2)+41
+        x_p_int(1,:)=int(-x_p(2,:))
+        !min_y=minval(x_p_int(1,:))
+        !max_y=maxval(x_p_int(1,:))
+        x_p_int(1,:)=x_p_int(1,:)-min_y+1
+        x_p_int(2,:)=int((x_p(3,:)+n_cell_z/2d0)*80d0/n_cell_z+1)
         x_p_2d=x_p_int(1,:)*10000+x_p_int(2,:)
 
         call quick_sort(x_p_2d,n_p,1,n_p)
@@ -793,10 +809,10 @@ contains
         x_p_int(2,:)=mod(x_p_2d,10000)
 
         k=1
-        do i=1,8
+        do i=1,max_y-min_y+1
             do j=1,80
                 if (x_p_int(1,k)==i .and. x_p_int(2,k)==j) then
-                    write(*,'(A,$)') 'o'
+                    write(*,'(A,$)') '*'
                     !k=k+1
                     do l=k,n_p
                         if (x_p_int(2,l)/=x_p_int(2,k)) then
@@ -845,8 +861,8 @@ contains
             enddo
             if (l<r) then
                 call swap(v(l),v(r))
-                            if (v(r)==key) l=l+1
-            if (v(l)==key) r=r-1
+                if (v(r)==key) l=l+1
+                if (v(l)==key) r=r-1
             endif
         enddo
 

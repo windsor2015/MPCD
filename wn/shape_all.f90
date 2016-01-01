@@ -71,6 +71,10 @@ module shape_all
     integer :: debug=0
     real(8) :: time0=0
 
+    integer :: min_y, max_y
+
+    integer cross_flag
+
     contains
 
 end module
