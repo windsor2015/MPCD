@@ -753,7 +753,7 @@ contains
             if (count(x_p(3,:)>0)>0 .and. count(x0_p(3,:)>0)>0) then
                 min_z=minval(x_p(3,:),x_p(3,:)>0)
                 min_z0=minval(x0_p(3,:),x0_p(3,:)>0)
-                if (min_z>=0.1 .and. min_z<0.1) then
+                if (min_z>=0.1 .and. min_z0<0.1) then
                     cross_flag=1
                 endif
             endif
