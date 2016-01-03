@@ -155,6 +155,7 @@ contains
         n_s=get_pipe_volume()*density_s
 
         allocate(x_s(3,n_s),v_s(3,n_s),x0_s(3,n_s),x_s0(3,n_s))
+        x_s=0
         i=0
         do while(.true.)
             i=i+1
@@ -207,7 +208,7 @@ contains
     subroutine FENE(f,U,rx)
         implicit none
         real(8) f(3), U, rx(3)
-        real(8), parameter :: FENE_rc=1.5*sigma, FENE_k=30
+        real(8), parameter :: FENE_rc=1.5*sigma, FENE_k=100
         real(8) temp,r
         rx(3)=rx(3)-n_cell_z*nint(rx(3)/n_cell_z)
         r=norm2(rx)
@@ -289,9 +290,9 @@ contains
 
     end subroutine
 
-    subroutine update_force(mode,flag)
+    subroutine update_force(mode)
         implicit none
-        integer mode, i, j,flag
+        integer mode, i, j
         real(8) temp(3)
 
         f_p=0
@@ -323,7 +324,7 @@ contains
 
         enddo
         !$omp end parallel do
-        call exter(f_p(3,1),flag)
+        !call exter(f_p(3,1),flag)
 
         U=U_FENE+U_BEND+U_LJ
 
@@ -731,10 +732,10 @@ contains
     end subroutine
 
 
-    subroutine one_step(cur_step,interval_step,output_file,flag)
+    subroutine one_step(cur_step,interval_step,output_file)
         implicit none
 
-        integer cur_step, output_file, i, interval_step,flag
+        integer cur_step, output_file, i, interval_step
         real(8) :: EK_scaled,T_scaled,t,min_z,min_z0,count_z
 
         ! solvent
@@ -761,7 +762,7 @@ contains
             call bounce_back(x_p,x0_p,v_p,n_p)
 
             call periodic_p()
-            call update_force(1,flag)
+            call update_force(1)
             v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
             f0_p=f_p
         enddo
