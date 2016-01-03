@@ -258,21 +258,14 @@ contains
                 do while(.not. in_pipe(x(:,i)))
                     call do_ba(x(:,i),x0(:,i),v(:,i))
                     c=c+1
-                    !                    if (debug==1) then
-                    !                        write(*,*) x(:,i)
-                    !                    endif
-                    if (c>2) then
-                        !write(*,*)i,c
+                    if (c>=10 .or. count(isnan(x(:,i)))>0) then
+                        write(*,*) i,'th particle is trapped'
                         !write(*,*)x(:,i)
-                        !debug=1
-                        if (c>=10) then
-                            write(*,*) i,'th particle is trapped'
-                            x(1:2,i)=0d0
-                            x(3,i)=-n_cell_z/2d0
-                            x0(1:3,i)=x(1:3,i)
-                            !write(*,*)x(:,i)
-                            exit
-                        end if
+                        x(1:2,i)=0d0
+                        x(3,i)=-n_cell_z/2d0+1
+                        x0(1:3,i)=x(1:3,i)
+                        !write(*,*)x(:,i)
+                        exit
                     end if
                 enddo
             endif

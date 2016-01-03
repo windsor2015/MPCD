@@ -208,7 +208,7 @@ contains
     subroutine FENE(f,U,rx)
         implicit none
         real(8) f(3), U, rx(3)
-        real(8), parameter :: FENE_rc=1.5*sigma, FENE_k=100
+        real(8), parameter :: FENE_rc=1.5*sigma, FENE_k=1500
         real(8) temp,r
         rx(3)=rx(3)-n_cell_z*nint(rx(3)/n_cell_z)
         r=norm2(rx)
