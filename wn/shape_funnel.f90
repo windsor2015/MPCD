@@ -268,7 +268,9 @@ contains
                         if (c>=10) then
                             write(*,*) i,'th particle is trapped'
                             x(1:2,i)=0d0
-                            x0(1:2,i)=0d0
+                            x(3,i)=-n_cell_z/2d0
+                            x0(1:3,i)=x(1:3,i)
+                            !write(*,*)x(:,i)
                             exit
                         end if
                     end if
