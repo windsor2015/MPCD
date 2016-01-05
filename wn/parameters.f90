@@ -34,7 +34,7 @@ contains
     subroutine init()
         implicit none
         integer i,j,k,count_number
-        real(8) dx(2,4), theta, r, d, t
+        real(8) dx(2,4), theta, r, d, t, x(3,10000), tx(10000),s
         logical success
         integer,parameter :: seed = 11111
 
@@ -127,22 +127,51 @@ contains
                 call periodic_p()
             case (1)
                 do i=1,n_p
-                    t=-pi+2*pi*i/n_p
-                    x_p(1,i)=sin(t)+2*sin(2*t)
+                    t=2*pi*i/n_p
+                    x_p(1,i)=cos(string_q*t)*(3+cos(string_p*t))
 #if defined (_T_TUBE)
-                    x_p(2,i)=-sin(3*t)+(1d0-ratio_y)*n_cell_y/2d0+ratio_y*n_cell_y/4d0
-                    x_p(3,i)=cos(t)-2*cos(2*t)-n_cell_z*ratio_z
+                    x_p(2,i)=sin(string_p*t)+(1d0-ratio_y)*n_cell_y/2d0+ratio_y*n_cell_y/4d0
+                    x_p(3,i)=sin(string_q*t)*(3+cos(string_p*t))-n_cell_z*ratio_z
 #elif defined (_T_TUBE1)
-                    x_p(2,i)=-sin(3*t)+(1d0-ratio_y)*n_cell_y/2d0+ratio_y*n_cell_y/4d0
-                    x_p(3,i)=cos(t)-2*cos(2*t)-n_cell_z*ratio_z
+                    x_p(2,i)=sin(string_p*t)+(1d0-ratio_y)*n_cell_y/2d0+ratio_y*n_cell_y/4d0
+                    x_p(3,i)=sin(string_q*t)*(3+cos(string_p*t))-n_cell_z*ratio_z
 #elif defined (_FUNNEL)
-                    x_p(2,i)=cos(t)-2*cos(2*t)
-                    x_p(3,i)=-sin(3*t)-n_cell_z/2+5d0
+                    x_p(2,i)=sin(string_q*t)*(3+cos(string_p*t))
+                    x_p(3,i)=3*sin(string_p*t)-n_cell_z/2+5d0
 #else
-                    x_p(2,i)=cos(t)-2*cos(2*t)
-                    x_p(3,i)=-sin(3*t)-n_cell_z*ratio_z
+                    x_p(2,i)=sin(string_q*t)*(3+cos(string_p*t))
+                    x_p(3,i)=sin(string_p*t)-n_cell_z*ratio_z
 #endif
                 end do
+                call periodic_p()
+            case (2)
+                t=-4
+                k=1
+                do while (t<=4)
+                    tx(k)=t
+                    k=k+1
+                    t=t+0.01
+                end do
+                k=k-1
+                x(1,:)=2d0/5*tx*(tx**2-7)*(tx**2-10)
+                x(2,:)=tx**4-13*tx**2
+                x(3,:)=1d0/10*tx*(tx**2-4)*(tx**2-9)*(tx**2-12)
+                x=x/25
+                s=0
+                do i=1,k-1
+                    s=s+norm2(x(:,i)-x(:,i+1))
+                enddo
+                d=s/n_p
+                s=0
+                j=1
+                do i=1,k-1
+                    s=s+norm2(x(:,i)-x(:,i+1))
+                    if (s>=j*d) then
+                        x_p(:,j)=x(:,i)
+                        j=j+1
+                    end if
+                enddo
+                x_p(3,:)=x_p(3,:)*1.5-20
                 call periodic_p()
         end select
 
@@ -208,7 +237,7 @@ contains
     subroutine FENE(f,U,rx)
         implicit none
         real(8) f(3), U, rx(3)
-        real(8), parameter :: FENE_rc=1.5*sigma, FENE_k=1500
+        real(8), parameter :: FENE_rc=1.5*sigma, FENE_k=15000
         real(8) temp,r
         rx(3)=rx(3)-n_cell_z*nint(rx(3)/n_cell_z)
         r=norm2(rx)
@@ -278,21 +307,19 @@ contains
 
     end subroutine
 
-    subroutine exter(f,flag)
+    subroutine exter(flag)
         implicit none
-        real(8) f
         integer flag
         if(flag==0)then
-            f=f+0
-        elseif(flag==1)then
-            f=f+0
+            f_p(3,1)=f_p(3,1)+20
+            f_p(3,n_p)=f_p(3,n_p)-20
         end if
 
     end subroutine
 
-    subroutine update_force(mode)
+    subroutine update_force(mode,equi_flag)
         implicit none
-        integer mode, i, j
+        integer mode, i, j, equi_flag
         real(8) temp(3)
 
         f_p=0
@@ -324,7 +351,7 @@ contains
 
         enddo
         !$omp end parallel do
-        !call exter(f_p(3,1),flag)
+        call exter(equi_flag)
 
         U=U_FENE+U_BEND+U_LJ
 
@@ -732,10 +759,10 @@ contains
     end subroutine
 
 
-    subroutine one_step(cur_step,interval_step,output_file)
+    subroutine one_step(cur_step,interval_step,output_file,flag)
         implicit none
 
-        integer cur_step, output_file, i, interval_step
+        integer cur_step, output_file, i, interval_step,flag
         real(8) :: EK_scaled,T_scaled,t,min_z,min_z0,count_z
 
         ! solvent
@@ -751,18 +778,18 @@ contains
             x0_p=x_p
             x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
 
-            if (count(x_p(3,:)>0)>0 .and. count(x0_p(3,:)>0)>0) then
-                min_z=minval(x_p(3,:),x_p(3,:)>0)
-                min_z0=minval(x0_p(3,:),x0_p(3,:)>0)
-                if (min_z>=1 .and. min_z0<1) then
-                    cross_flag=1
-                endif
-            endif
+            !            if (count(x_p(3,:)>0)>0 .and. count(x0_p(3,:)>0)>0) then
+            !                min_z=minval(x_p(3,:),x_p(3,:)>0)
+            !                min_z0=minval(x0_p(3,:),x0_p(3,:)>0)
+            !                if (min_z>=1 .and. min_z0<1) then
+            !                    cross_flag=1
+            !                endif
+            !            endif
 
             call bounce_back(x_p,x0_p,v_p,n_p)
 
             call periodic_p()
-            call update_force(1)
+            call update_force(1,flag)
             v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
             f0_p=f_p
         enddo
@@ -781,7 +808,7 @@ contains
         endif
         if (mod(cur_step,interval_step)==0)then
             call output(output_file,cur_step,interval_step)
-            if (cross_flag==1 .and. min_z>n_cell_z/3d0) cross_flag=2
+            !            if (cross_flag==1 .and. min_z>n_cell_z/3d0) cross_flag=2
         endif
         !call output_U(energy_file,cur_step,interval_step)
     end subroutine

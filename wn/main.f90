@@ -54,7 +54,7 @@ program Poisellie_field
     write(*,*) 'Initial scaled temperature T_scaled: ',T_scaled
 
     ! 没有外场时，polymer和solution达到平衡
-    call update_force(0)
+    call update_force(0,0)
 
     t=0
     write(*,*) ''
@@ -66,7 +66,7 @@ program Poisellie_field
     call clear_stat()
     do cur_step=1,equili_step
         ! write(*,*) U
-        call one_step(cur_step,equili_interval_step, equi_file)
+        call one_step(cur_step,equili_interval_step, equi_file,0)
         call stat_velocity(cur_step,equili_interval_step)
     enddo
     call output_velocity(1,velocity_file,coord_velo_file, equili_step,equili_interval_step)
@@ -76,7 +76,7 @@ program Poisellie_field
 
     !!! compute a(t-dt)
 
-    call update_force(0)
+    call update_force(0,1)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     write(*,'(A7,6A12)') 'step', 'BEND','FENE','LJ', 'total','T_scaled','time'
 
@@ -90,13 +90,13 @@ program Poisellie_field
             v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         end if
 
-        call one_step(cur_step, produ_interval_step,produ_file)
+        call one_step(cur_step, produ_interval_step,produ_file,1)
         call stat_velocity(cur_step,produ_interval_step)
 
-        if (cross_flag==2) then
-            write(*,*) 'seems the string has crossed'
-            exit
-        end if
+!        if (cross_flag==2) then
+!            write(*,*) 'seems the string has crossed'
+!            exit
+!        end if
 
     enddo
     call output_velocity(2,velocity_file,coord_velo_file,total_step,produ_interval_step)

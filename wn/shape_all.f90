@@ -10,9 +10,9 @@ module shape_all
 #endif
     ! 下标约定: p - polymer, s - solution, b - boundary / phantom
     !结构
-    integer, parameter :: n_cell_x=10, n_cell_y=20, n_cell_z=40, n_p = 50
+    integer, parameter :: n_cell_x=10, n_cell_y=20, n_cell_z=40, n_p = 100
 
-    integer :: string_form = 0,  n_b, n_s
+    integer :: n_b, n_s
 
     real(8) :: density_s, gama, ratio_y, ratio_z, BEND_b
 
@@ -63,7 +63,7 @@ module shape_all
         desk_interval_step, equili_step, equili_interval_step, total_step, produ_interval_step, &
         thermostat_method, thermostat_interval, thermostat_B_parameter,thermostat_A_parameter, &
         string_form, BEND_b, equili_filename, production_filename,radius,ratio_z,ratio_y, &
-        output_sketch, field_interval
+        output_sketch, field_interval, string_p,string_q
 
 #ifdef __INTEL_COMPILER
     TYPE (VSL_STREAM_STATE) :: vsl_stream
@@ -74,6 +74,8 @@ module shape_all
     integer :: min_y, max_y
 
     integer cross_flag
+
+    integer :: string_form = 0, string_p=3,string_q=2
 
     contains
 
