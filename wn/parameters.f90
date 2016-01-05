@@ -145,9 +145,9 @@ contains
                 end do
                 call periodic_p()
             case (2)
-                t=-4
+                t=-3.55
                 k=1
-                do while (t<=4)
+                do while (t<=3.55)
                     tx(k)=t
                     k=k+1
                     t=t+0.01
@@ -156,7 +156,7 @@ contains
                 x(1,:)=2d0/5*tx*(tx**2-7)*(tx**2-10)
                 x(2,:)=tx**4-13*tx**2
                 x(3,:)=1d0/10*tx*(tx**2-4)*(tx**2-9)*(tx**2-12)
-                x=x/25
+                x=x/10
                 s=0
                 do i=1,k-1
                     s=s+norm2(x(:,i)-x(:,i+1))
@@ -171,7 +171,7 @@ contains
                         j=j+1
                     end if
                 enddo
-                x_p(3,:)=x_p(3,:)*1.5-20
+                x_p(3,:)=x_p(3,:)*1.5-15
                 call periodic_p()
         end select
 

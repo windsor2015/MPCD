@@ -1,15 +1,15 @@
 &basic
 gama=0.001
 density_s=5d0
-BEND_b=10d0
+BEND_b=30d0
 ratio_y=0.5d0
 ratio_z=0.25d0
 radius=4d0,1d0
 
 desk_interval_step=1000
-equili_step=50000
+equili_step=100000
 equili_interval_step=1000
-total_step=2000000
+total_step=3000000
 produ_interval_step=1000
 
 thermostat_method=12, thermostat_interval=10, thermostat_B_parameter=1d-4, thermostat_A_parameter=1d-3
@@ -20,12 +20,13 @@ thermostat_method=12, thermostat_interval=10, thermostat_B_parameter=1d-4, therm
 
 ! 0 and 1 never change the momentum directions, 2 never keeps the previous momentum
 
-string_form=1
+string_form=2
+string_p=4,string_q=3
 ! 0: normal, 1: knot3,1
 
 output_sketch=1
 
-field_interval=10000
+field_interval=0
 
 production_filename='dump.production.lammpstrj'
 
