@@ -145,6 +145,7 @@ contains
                 end do
                 call periodic_p()
             case (2)
+                ! 生成图形
                 t=-3.55
                 k=1
                 do while (t<=3.55)
@@ -156,11 +157,12 @@ contains
                 x(1,:)=2d0/5*tx*(tx**2-7)*(tx**2-10)
                 x(2,:)=tx**4-13*tx**2
                 x(3,:)=1d0/10*tx*(tx**2-4)*(tx**2-9)*(tx**2-12)
-                x=x/10
+                ! 计算曲线长度
                 s=0
                 do i=1,k-1
                     s=s+norm2(x(:,i)-x(:,i+1))
                 enddo
+                ! 按照平均长度
                 d=s/n_p
                 s=0
                 j=1
@@ -171,6 +173,9 @@ contains
                         j=j+1
                     end if
                 enddo
+                ! 根据心情微调
+                x_p=x_p/10
+                x_p(2,:)=x_p(2,:)+1;
                 x_p(3,:)=x_p(3,:)*1.5-15
                 call periodic_p()
         end select
