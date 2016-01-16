@@ -137,7 +137,7 @@ contains
                     x_p(3,i)=sin(string_q*t)*(3+cos(string_p*t))-n_cell_z*ratio_z
 #elif defined (_FUNNEL)
                     x_p(2,i)=sin(string_q*t)*(3+cos(string_p*t))
-                    x_p(3,i)=3*sin(string_p*t)-n_cell_z/2+5d0
+                    x_p(3,i)=string_z*sin(string_p*t)-n_cell_z/2+5d0
 #else
                     x_p(2,i)=sin(string_q*t)*(3+cos(string_p*t))
                     x_p(3,i)=sin(string_p*t)-n_cell_z*ratio_z

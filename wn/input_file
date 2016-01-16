@@ -20,8 +20,9 @@ thermostat_method=12, thermostat_interval=10, thermostat_B_parameter=1d-4, therm
 
 ! 0 and 1 never change the momentum directions, 2 never keeps the previous momentum
 
-string_form=2
-string_p=4,string_q=3
+string_form=1
+string_p=3,string_q=2
+string_z=1
 ! 0: normal, 1: knot3,1
 
 output_sketch=1
