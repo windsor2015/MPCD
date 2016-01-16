@@ -83,7 +83,7 @@ program Poisellie_field
     write(*,*) '-------------------------------------------------------------------------------'
 
     call clear_stat()
-    cross_flag=0
+    knot_flag=0
     do cur_step=1,total_step
 
         if (field_interval==0 .or. mod(cur_step, field_interval*2)<=field_interval) then
@@ -93,10 +93,10 @@ program Poisellie_field
         call one_step(cur_step, produ_interval_step,produ_file,1)
         call stat_velocity(cur_step,produ_interval_step)
 
-!        if (cross_flag==2) then
-!            write(*,*) 'seems the string has crossed'
-!            exit
-!        end if
+        if (knot_flag==2) then
+            write(*,*) 'the knot has untied'
+            exit
+        end if
 
     enddo
     call output_velocity(2,velocity_file,coord_velo_file,total_step,produ_interval_step)
