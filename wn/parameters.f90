@@ -434,7 +434,9 @@ contains
 
         ! phantom particle, the velocity
         sigma1=sqrt(T_set)
+#ifdef __INTEL_COMPILER
         i=vdrnggaussian(VSL_RNG_METHOD_GAUSSIAN_BOXMULLER, vsl_stream, n_b*3, v_b, 0d0, sigma1)
+#endif
         !$omp parallel do private(ix,iy,iz,check,temp)
         do i=1,n_b
             call get_cell_xyz(x_b(:,i)+randr,ix,iy,iz,check)
@@ -498,7 +500,8 @@ contains
 
                     scalar=1d0
                     if (thermostat_method>=10) then
-                        scalar=thermostat_cal_scalar(cur_step, count_cell_p(ix,iy,iz)+count_cell_s(ix,iy,iz)+count_cell_b(ix,iy,iz), Ek)
+                        scalar=thermostat_cal_scalar(cur_step, count_cell_p(ix,iy,iz) &
+                        +count_cell_s(ix,iy,iz)+count_cell_b(ix,iy,iz), Ek)
                     end if
 
                     do i=1,count_p
@@ -920,6 +923,27 @@ contains
         call date_and_time(values=d)
         write (*,'(I5,A,I2.2,A,I2.2,A,I2.2,A,I2.2,A,I2.2,A,I3.3)') &
             d(1),'-',d(2),'-',d(3),'/',d(5),':',d(6),':',d(7),'.',d(8)
+    end subroutine
+
+    subroutine output_time_format(t)
+        implicit none
+        real(8) t
+        integer d,h,m,s0
+        real(8) s
+        s0=int(t)
+        d=s0/86400
+        s0=s0-d*86400
+        h=s0/3600
+        s0=s0-h*3600
+        m=s0/60
+        s0=s0-m*60
+        s=t-int(t)+s0
+        !write(stdout,*) d,h,m,s0,s
+        write (*, '(A,$)') '   '
+        if (d>0) write (*, '(I3,A,$)') d,'d '
+        if (h>0) write (*, '(I2,A,$)') h,'h '
+        if (m>0) write (*, '(I2,A,$)') m,'m '
+        write (*,'(F6.3,A)') s,'s'
     end subroutine
 
 end module parameters

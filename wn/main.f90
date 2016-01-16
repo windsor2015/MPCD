@@ -111,8 +111,10 @@ program Poisellie_field
     call output_date()
     call get_time(t)
     call cpu_time(tc1)
-    write(*,*) 'wall time is', t-t0, 's'
-    write(*,*) 'cpu  time is', tc1-tc0, 's'
+    write(*,'(A,$)') ' wall time is'
+    call output_time_format(t-t0)
+    write(*,'(A,$)') ' cpu  time is'
+    call output_time_format(tc1-tc0)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 end program Poisellie_field

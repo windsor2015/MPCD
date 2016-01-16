@@ -66,8 +66,9 @@ contains
         r=sqrt(x(1)**2+x(2)**2)
         z=x(3)
         theta=(radius(1)-radius(2))/(n_cell_z*ratio_y/2d0-n_cell_z*ratio_z/2d0)
-        if (r>radius(1).or.(r>radius(2).and.abs(z)<n_cell_z*ratio_z/2d0).or. &
-                (r>((abs(x(3))-n_cell_z*ratio_z/2d0)*theta + radius(2)).and.abs(z)<n_cell_z*ratio_y/2d0.and.abs(z)>n_cell_z*ratio_z/2d0))then
+        if (r>radius(1).or.(r>radius(2).and.abs(z)<n_cell_z*ratio_z/2d0) .or. &
+                (r>((abs(x(3))-n_cell_z*ratio_z/2d0)*theta + radius(2)) .and. &
+                abs(z)<n_cell_z*ratio_y/2d0.and.abs(z)>n_cell_z*ratio_z/2d0))then
             get_region=0
             return
         endif
