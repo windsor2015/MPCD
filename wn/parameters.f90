@@ -817,7 +817,8 @@ contains
         if (mod(cur_step,interval_step)==0)then
             call output(output_file,cur_step,interval_step)
             knot_flag=is_knot(x_p,n_p)
-            !            if (cross_flag==1 .and. min_z>n_cell_z/3d0) cross_flag=2
+	    !write(*,*) knot_flag
+            !if (cross_flag==1 .and. min_z>n_cell_z/3d0) cross_flag=2
         endif
         !call output_U(energy_file,cur_step,interval_step)
     end subroutine

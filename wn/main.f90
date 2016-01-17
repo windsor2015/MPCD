@@ -83,7 +83,7 @@ program Poisellie_field
     write(*,*) '-------------------------------------------------------------------------------'
 
     call clear_stat()
-    knot_flag=0
+    knot_flag=.true.
     do cur_step=1,total_step
 
         if (field_interval==0 .or. mod(cur_step, field_interval*2)<=field_interval) then
@@ -93,7 +93,7 @@ program Poisellie_field
         call one_step(cur_step, produ_interval_step,produ_file,1)
         call stat_velocity(cur_step,produ_interval_step)
 
-        if (knot_flag) then
+        if (.not. knot_flag) then
             write(*,*) 'the knot has untied'
             exit
         end if
