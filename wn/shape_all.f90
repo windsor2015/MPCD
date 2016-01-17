@@ -73,7 +73,7 @@ module shape_all
 
     integer :: min_y, max_y
 
-    integer knot_flag
+    logical knot_flag
 
     integer :: string_form = 0, string_p=3, string_q=2, string_z=1
 

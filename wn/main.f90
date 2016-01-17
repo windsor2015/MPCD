@@ -93,7 +93,7 @@ program Poisellie_field
         call one_step(cur_step, produ_interval_step,produ_file,1)
         call stat_velocity(cur_step,produ_interval_step)
 
-        if (knot_flag==2) then
+        if (knot_flag) then
             write(*,*) 'the knot has untied'
             exit
         end if
