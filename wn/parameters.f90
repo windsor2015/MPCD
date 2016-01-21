@@ -768,10 +768,12 @@ contains
 
 
     subroutine one_step(cur_step,interval_step,output_file,flag)
+        use statistics, only : stat_main
         implicit none
 
-        integer cur_step, output_file, i, interval_step,flag
+        integer cur_step, output_file, i, interval_step,flag,n_p1
         real(8) :: EK_scaled,T_scaled,t,min_z,min_z0,count_z
+        character(80) string
 
         ! solvent
         x0_s=x_s
@@ -808,16 +810,16 @@ contains
         if(mod(cur_step,desk_interval_step)==0)then
             call Ek_T(EK_scaled, T_scaled)
             call get_time(t)
-            write(*,'(I7,6F12.3)') cur_step,U_BEND,U_FENE,U_LJ,U,T_scaled,t-time0
+            call stat_main(cur_step,x_p,n_p,n_p1,string)
+            write(*,'(I7,I7,2F10.3,5X,A40)') cur_step,n_p1,T_scaled,t-time0,string
             if (output_sketch/=0) then
                 call output_sketch_sub()
             end if
+            knot_flag=n_p1/=0
             time0=t
         endif
         if (mod(cur_step,interval_step)==0)then
             call output(output_file,cur_step,interval_step)
-            knot_flag=is_knot(x_p,n_p)
-	    !write(*,*) knot_flag
             !if (cross_flag==1 .and. min_z>n_cell_z/3d0) cross_flag=2
         endif
         !call output_U(energy_file,cur_step,interval_step)
@@ -946,114 +948,6 @@ contains
         if (h>0) write (*, '(I2,A,$)') h,'h '
         if (m>0) write (*, '(I2,A,$)') m,'m '
         write (*,'(F6.3,A)') s,'s'
-    end subroutine
-
-
-    function is_knot(x_,n_)
-        implicit none
-        integer n_, n
-        real(8) x_(3,n_), x(3,n_)
-        logical removed, is_knot, t_f
-        integer i,j,t
-
-        removed=.true.
-        is_knot=.true.
-        x=x_
-        n=n_
-        call connect(x,n)
-        do while (removed)
-            removed=.false.
-            ! 检查粒子
-            !call output(output_file,q)
-            do i=1,n-2,1
-                t=0
-                ! 线段
-                do j=1,n-1
-                    if ( j+1<i .or. j>i+2 ) then
-                        t_f = inside_triangle(x(1:3,i),x(1:3,i+1),x(1:3,i+2),x(1:3,j),x(1:3,j+1))
-                        if (t_f) then
-                            t=t+1
-                            !write(*,*) i,j,t_f
-                        endif
-                    endif
-                enddo
-                if (t==0)exit
-                !如果t为0, 可以被移除, 如果t不是0则不能移除
-            enddo
-            if(t==0)then
-                x(:,i+1:n-1) = x(:,i+2:n)
-                n=n-1
-                removed=.true.
-            endif
-            ! write(*,*)n_p
-            if (n<=2) then
-                is_knot=.false.
-                exit
-            endif
-        enddo
-    end function
-
-
-
-    function inside_triangle(x1,x2,x3,t1,t2)
-        implicit none
-        real(8), dimension(3) :: x1,x2,x3,t1,t2,normal,tm,xc
-        real(8) t,s1,s2,s3,s
-        logical inside_triangle
-
-        normal=cross_product(x1-x2,x3-x2)
-        tm=t2-t1
-        t=dot_product(x2-t1,normal)/dot_product(normal,tm)
-        xc=t1+tm*t
-
-        if (t<=0 .or. t>=1) then
-            inside_triangle=.false.
-            return
-        end if
-
-        s=area(x1,x2,x3)
-        s1=area(xc,x2,x3)
-        s2=area(xc,x1,x3)
-        s3=area(xc,x2,x1)
-
-        inside_triangle = abs(s1+s2+s3-s)<1e-8
-    end function
-
-    function area(x1,x2,x3)
-        implicit none
-        real(8), dimension(3) :: x1,x2,x3
-        real(8) :: area
-        area = norm2(cross_product(x1-x2,x3-x2))/2
-    end function
-
-    function cross_product(v1, v2)
-        implicit none
-        real(8), dimension(3) :: v1, v2
-        real(8), dimension(3) :: cross_product
-
-        cross_product(1) = v1(2)*v2(3) - v1(3)*v2(2)
-        cross_product(2) = v1(3)*v2(1) - v1(1)*v2(3)
-        cross_product(3) = v1(1)*v2(2) - v1(2)*v2(1)
-    end function
-
-    subroutine connect(x,n)
-        integer f,i,j
-        real(8) rz,r0,x(3,n_p)
-        parameter(r0=7)
-        do i=2,n
-            rz=x(3,i)-x(3,i-1)
-            if(abs(rz)>r0)then
-                if(rz>0)then
-                    f=-1
-                else
-                    f=1
-                endif
-                do j=i,n
-                    x(3,j)=x(3,j)+n_cell_z*f
-                enddo
-            endif
-        enddo
-        return
     end subroutine
 
 end module parameters

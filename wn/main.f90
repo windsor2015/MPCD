@@ -2,16 +2,21 @@ program Poisellie_field
     use parameters
 
     implicit none
-    integer :: cur_step,equi_file,energy_file,produ_file,velocity_file,coord_velo_file
-    integer i,j,k,h_p
+    integer :: cur_step,equi_file,energy_file,produ_file,velocity_file,coord_velo_file,output_file,left_file
+    integer i,j,k,h_p,n_p0
     real(8) :: EK_scaled,T_scaled,r,t,t0,tc0,tc1
-
+    integer,parameter::string_length=80
+    character(string_length) deletion_file,left_monomer_number, hom
 
     equi_file=912
     !energy_file=913
     produ_file=914
     velocity_file=915
     coord_velo_file=916
+    output_file=917
+    left_file=918
+    deletion_file='dump.deletion.lammpstrj'
+    left_monomer_number='left_monomer.out'
 
     call report()
     call readin()
@@ -32,6 +37,8 @@ program Poisellie_field
     open(produ_file,file=production_filename)
     open(velocity_file,file='velocity_radius')
     open(coord_velo_file,file='coordinate_velocity')
+    open(output_file,file=deletion_file)
+    open(left_file,file=left_monomer_number)
 
     call init()
     call thermostat_init()
@@ -59,9 +66,10 @@ program Poisellie_field
     t=0
     write(*,*) ''
     write(*,*)'Equilibrium begin:'
-    write(*,'(A7,6A12)') 'step', 'BEND','FENE','LJ','total','T_scaled','time'
+    !write(*,'(A7,6A12)') 'step', 'BEND','FENE','LJ','total','T_scaled','time'
+    write(*,'(2A7,2A10)') 'step', 'knot','T_scaled','time'
     write(*,*) '-------------------------------------------------------------------------------'
-    write(*,'(I7,6F12.3)') 0, U_BEND, U_FENE, U_LJ, U,T_scaled,t
+    !write(*,'(I7,6F12.3)') 0, U_BEND, U_FENE, U_LJ, U,T_scaled,t
 
     call clear_stat()
     do cur_step=1,equili_step
@@ -78,8 +86,7 @@ program Poisellie_field
 
     call update_force(0,1)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    write(*,'(A7,6A12)') 'step', 'BEND','FENE','LJ', 'total','T_scaled','time'
-
+    write(*,'(2A7,A10)') 'step', 'knot','T_scaled','time'
     write(*,*) '-------------------------------------------------------------------------------'
 
     call clear_stat()
@@ -93,10 +100,10 @@ program Poisellie_field
         call one_step(cur_step, produ_interval_step,produ_file,1)
         call stat_velocity(cur_step,produ_interval_step)
 
-        if (.not. knot_flag) then
-            write(*,*) 'the knot has untied'
-            exit
-        end if
+            if (.not. knot_flag) then
+                write(*,*) 'the knot has untied'
+                exit
+            end if
 
     enddo
     call output_velocity(2,velocity_file,coord_velo_file,total_step,produ_interval_step)
