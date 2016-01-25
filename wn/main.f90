@@ -1,6 +1,6 @@
 program Poisellie_field
     use parameters
-
+    use statistics, only: trans_end_t
     implicit none
     integer :: cur_step,equi_file,energy_file,produ_file,velocity_file,coord_velo_file,output_file,left_file
     integer i,j,k,h_p,n_p0
@@ -66,10 +66,7 @@ program Poisellie_field
     t=0
     write(*,*) ''
     write(*,*)'Equilibrium begin:'
-    !write(*,'(A7,6A12)') 'step', 'BEND','FENE','LJ','total','T_scaled','time'
-    write(*,'(2A7,2A10)') 'step', 'knot','T_scaled','time'
-    write(*,*) '-------------------------------------------------------------------------------'
-    !write(*,'(I7,6F12.3)') 0, U_BEND, U_FENE, U_LJ, U,T_scaled,t
+    call write_table_title()
 
     call clear_stat()
     do cur_step=1,equili_step
@@ -86,9 +83,7 @@ program Poisellie_field
 
     call update_force(0,1)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    write(*,'(2A7,A10)') 'step', 'knot','T_scaled','time'
-    write(*,*) '-------------------------------------------------------------------------------'
-
+call write_table_title()
     call clear_stat()
     knot_flag=.true.
     do cur_step=1,total_step
@@ -97,14 +92,14 @@ program Poisellie_field
             v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         end if
 
-        call one_step(cur_step, produ_interval_step,produ_file,1)
+        call one_step(cur_step, produ_interval_step,produ_file,trans_end_t,1)
         call stat_velocity(cur_step,produ_interval_step)
 
-            if (.not. knot_flag) then
-                write(*,*) 'the knot has untied'
-                exit
-            end if
-
+           ! if (.not. knot_flag) then
+            !    write(*,*) 'the knot has untied'
+               ! exit
+            !end if
+        if(cur_step-trans_end_t>50000)stop
     enddo
     call output_velocity(2,velocity_file,coord_velo_file,total_step,produ_interval_step)
 

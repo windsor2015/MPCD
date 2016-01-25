@@ -231,7 +231,8 @@ contains
 
     subroutine periodic_p()
         implicit none
-        x_p(3,:)=x_p(3,:)-n_cell_z*nint((x_p(3,:))/n_cell_z)
+        xp_p(1:2,:)=x_p(1:2,:)
+        xp_p(3,:)=x_p(3,:)-n_cell_z*nint((x_p(3,:))/n_cell_z)
     endsubroutine
 
     subroutine periodic_s()
@@ -311,6 +312,7 @@ contains
         U=U+BEND_b*(1+c)
 
     end subroutine
+
 
     subroutine exter(flag)
         implicit none
@@ -413,7 +415,7 @@ contains
 
         !$omp parallel do private(ix,iy,iz,check)
         do i=1,n_p
-            call get_cell_xyz(x_p(:,i)+randr,ix,iy,iz,check)
+            call get_cell_xyz(xp_p(:,i)+randr,ix,iy,iz,check)
             if (.not.check) cycle
             count_cell_p(ix,iy,iz)=count_cell_p(ix,iy,iz)+1
             pointer_cell_p(ix,iy,iz,count_cell_p(ix,iy,iz))=i
@@ -746,7 +748,7 @@ contains
         write(output_file,*)'ITEM:ATOMS id type x y z'
 
         do k=1,n_p
-            write(output_file,'(I6,I3,3F9.4)') k,1,x_p(:,k)
+            write(output_file,'(I6,I3,3F9.4)') k,1,xp_p(:,k)
         enddo
         do k=1,n_s
             write(output_file,'(I6,I3,3F9.4)') n_p+k,2,x_s(:,k)
@@ -766,13 +768,17 @@ contains
         endif
     end subroutine
 
+    subroutine write_table_title()
+        write(*,'(A7,3A10,A7,A7,A20)') 'step', 'time','T_scaled','Rg','knot','tran_t','homfly'
+        write(*,*) '-------------------------------------------------------------------------------'
+    end subroutine
 
-    subroutine one_step(cur_step,interval_step,output_file,flag)
-        use statistics, only : stat_main
+    subroutine one_step(cur_step,interval_step,output_file,trans_end_t,equili_force)
+        use statistics, only : stat_main, translocation_t, return_translocation_t
         implicit none
 
-        integer cur_step, output_file, i, interval_step,flag,n_p1
-        real(8) :: EK_scaled,T_scaled,t,min_z,min_z0,count_z
+        integer cur_step, output_file, i, interval_step,equili_force,n_p1, tt
+        real(8) :: EK_scaled,T_scaled,t,min_z,min_z0,count_z,Rg
         character(80) string
 
         ! solvent
@@ -787,7 +793,7 @@ contains
 
             x0_p=x_p
             x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
-
+            !p_x=x_p
             !            if (count(x_p(3,:)>0)>0 .and. count(x0_p(3,:)>0)>0) then
             !                min_z=minval(x_p(3,:),x_p(3,:)>0)
             !                min_z0=minval(x0_p(3,:),x0_p(3,:)>0)
@@ -799,19 +805,22 @@ contains
             call bounce_back(x_p,x0_p,v_p,n_p)
 
             call periodic_p()
-            call update_force(1,flag)
+            call update_force(1,equili_force)
             v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
             f0_p=f_p
         enddo
 
         call cal_collision_velocity(cur_step)
+        if (equili_force/=0)call translocation_t(x_p,n_p,cur_step)
+
         if (thermostat_method<10) call thermostat(cur_step)
 
         if(mod(cur_step,desk_interval_step)==0)then
             call Ek_T(EK_scaled, T_scaled)
             call get_time(t)
-            call stat_main(cur_step,x_p,n_p,n_p1,string)
-            write(*,'(I7,I7,2F10.3,5X,A40)') cur_step,n_p1,T_scaled,t-time0,string
+            call stat_main(cur_step,x_p,n_p,n_p1,string,Rg)
+           tt=return_translocation_t()   !!!记录穿孔时间，先输出看下
+            write(*,'(I7,3F10.3,I7,I7,5x,A)') cur_step,t-time0,T_scaled,Rg,n_p1,tt,trim(string)
             if (output_sketch/=0) then
                 call output_sketch_sub()
             end if
@@ -831,11 +840,11 @@ contains
         integer x_p_2d(n_p)
         integer i,j,k,l,x_p_int(2,n_p)
 
-        x_p_int(1,:)=int(-x_p(2,:))
+        x_p_int(1,:)=int(-xp_p(2,:))
         !min_y=minval(x_p_int(1,:))
         !max_y=maxval(x_p_int(1,:))
         x_p_int(1,:)=x_p_int(1,:)-min_y+1
-        x_p_int(2,:)=int((x_p(3,:)+n_cell_z/2d0)*80d0/n_cell_z+1)
+        x_p_int(2,:)=int((xp_p(3,:)+n_cell_z/2d0)*80d0/n_cell_z+1)
         x_p_2d=x_p_int(1,:)*10000+x_p_int(2,:)
 
         call quick_sort(x_p_2d,n_p,1,n_p)

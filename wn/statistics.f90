@@ -1,9 +1,9 @@
 module statistics
+    use shape_all , only: ratio_z, n_cell_z, n_p
     integer :: n_p_const=100
-    integer n_p,n_cell_z
     real(8) x(4,100)
 
-    integer :: pos_string=0
+    integer :: trans_end_t=-1, trans_begin_t=-1
 
     interface
         subroutine homfly(content,n,string) bind(C, name='homfly')
@@ -15,12 +15,11 @@ module statistics
     endinterface
 contains
 
+subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
 
-    subroutine stat_main(cur_step,x_p,n_p0,n_p,string)
-
-        integer n_p,n_p0,cur_step,i
+        integer n_p,n_p0,cur_step,i,trans_t
         character(80) string
-        real(8) x_p(3,n_p0)
+        real(8) x_p(3,n_p0),Rg
 
         n_p_const=n_p0
 
@@ -29,19 +28,53 @@ contains
             x(4,i)=i
         end do
 
-
         n_p=n_p0
+        Rg=stat_gyration(x_p,n_p)
 
-        call connect(x,n_p)
+        !call translocation_t(x_p,n_p,cur_step,trans_begin_t,trans_end_t)
+        if(trans_begin_t/=0.and.trans_end_t/=0)then
+            trans_t=trans_end_t-trans_begin_t
+        end if
         !call cal_t(x,n_p,t,hom)
         !测试时只看这一步,用31结测试一下
         call cal_t(x,n_p,string)
         call removeparticle(x,n_p,cur_step)
 
-        !call periodic_p()
-
     end subroutine
 
+    function stat_gyration(x_p,n_p) result(Rg)
+        real(8) Rg,xc(3),x_p(3,n_p)
+        integer i
+        xc=0d0
+        Rg=0d0
+
+        xc(1)=sum(x_p(1,:))
+        xc(2)=sum(x_p(2,:))
+        xc(3)=sum(x_p(3,:))
+        xc=xc/n_p
+
+        Rg=sum((x_p(1,:)-xc(1))**2)+sum((x_p(2,:)-xc(2))**2)+sum((x_p(3,:)-xc(3))**2)
+        Rg=sqrt(Rg/n_p)
+
+    end function
+
+    subroutine translocation_t(x_p,n_p,cur_step)
+        real(8) x_p(3,n_p)
+        integer i,j,cur_step
+
+        if(count(x_p(3,:)<-n_cell_z*ratio_z/2d0)==n_p-1 .and. trans_begin_t==-1)then
+            t0=cur_step
+        endif
+        if(count(x_p(3,:)>n_cell_z*ratio_z/2d0)==n_p-1 .and. trans_end_t==-1)then
+            t=cur_step
+        end if
+    end subroutine
+
+    function return_translocation_t()
+        return_translocation_t=trans_end_t-trans_begin_t
+    end function
+
+!!!!!!!!!传字串给homfly,貌似没用到，传了整数数组
     subroutine append_string(str0,str)
         character(30) str
         character(1000) str0
@@ -50,7 +83,6 @@ contains
         l2=len(trim(str))
         !write(*,*)l1,l2
         str0(l1+1:l1+l2)=str(1:l2)
-
     end subroutine
 
 
@@ -97,9 +129,9 @@ contains
 
     subroutine connect(x,n)
         integer f,i,j
-        real(8) rz,r0,x(4,n_p)
+        real(8) rz,x(4,n)
         parameter(r0=7)
-        n_cell_z=40
+        !n_cell_z=40
         do i=2,n
             rz=x(3,i)-x(3,i-1)
             if(abs(rz)>r0)then
@@ -407,6 +439,9 @@ contains
         integer content(1000),n
         character(80) string
 
+        string=achar(0)
+        string='0'
+
         xp(1,:)=x(2,:)
         xp(2,:)=x(3,:)
         xp(3,:)=x(1,:)
@@ -472,6 +507,8 @@ contains
         content(1)=1
         !write(*,*) k
         content(2)=k
+
+        if (k==0) return
 
         c=1
         n=3
@@ -603,74 +640,5 @@ contains
         enddo
     end function
 
-
 end module
 
-!program data_statistics
-!    use parameters
-!    implicit none
-!
-!    type particle
-!        integer pid,ptype
-!        real(8) pcord(3)
-!    endtype particle
-!    type(particle) temp_particle
-!
-!    logical removed
-!    integer,parameter::string_length=80
-!    character(string_length) filename,string,str,production_file,left_monomer_number, hom
-!    integer i,j,l,k,q,s,k0,dump_file,output_file,n_p0(n_p_const),left_file,i1,i2,i3,minj,maxj
-!    integer::status=0
-!
-!    real(8) t(6,n_p_const*2)
-!
-!
-!    production_file='dump.production.lammpstrj'
-!    left_monomer_number='left_monomer.out'
-!    n_p=n_p_const
-!    dump_file=11
-!    output_file=12
-!    left_file=13
-!    open(output_file,file=production_file)
-!    open(left_file,file=left_monomer_number)
-!
-!    write(filename,*) n_p
-!    open(dump_file,file='dump.'//trim(adjustl(filename))//'.lammpstrj',status='old')
-!
-!    do s=1,2000
-!
-!        q=s*1000
-!        !write(*,*)q,n_p
-!
-!        write(string,*)q
-!        k0=len_trim(trim(adjustl(string)))
-!        !write(*,*)k0
-!        do while(.true.)
-!            read(dump_file,fmt='(A80)')str
-!            ! write(*,*)str
-!            if(trim(adjustl(str))==trim(adjustl(string)))exit
-!            !stop
-!        enddo
-!
-!        do k=1,7
-!            read(dump_file,fmt='(A80)')str
-!        enddo
-!        n_p=n_p_const
-!        do l=1,n_p
-!
-!            read(dump_file,fmt=*,iostat=status) temp_particle
-!
-!            if(temp_particle%ptype==1)then
-!                x(1:3,temp_particle%pid)=temp_particle%pcord
-!                x(4,temp_particle%pid)=temp_particle%pid
-!            endif
-!
-!        enddo
-!
-!    enddo
-!
-!    close(dump_file)
-!    close(left_file)
-!end program
-!
-!
