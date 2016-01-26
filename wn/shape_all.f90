@@ -23,8 +23,8 @@ module shape_all
 
     real(8), parameter :: time_step_p=1d-4, time_step_s=5d-3, mass_p=1d0, mass_s=0.2d0, T_set=1d0, v_gradient=0.2d0
 
-    ! polymer 位置 速度 力 上一次力
-    real(8), dimension(3,n_p) :: x_p, v_p, f_p, f0_p, x0_p
+    ! polymer 位置 速度 力 上一次力 x_p 无周期性 xp_p有期性性
+    real(8), dimension(3,n_p) :: x_p, v_p, f_p, f0_p, x0_p, xp_p
     ! solution
     real(8), allocatable, dimension(:,:) :: x_s, v_s, x0_s, x_s0
     ! boundaaries, 1~nb-up, nb+1~2nb-down

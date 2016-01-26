@@ -10,14 +10,15 @@ contains
 
     logical function in_pipe(x)
         implicit none
-        real(8) x(3),r,theta
+        real(8) x(3),r,theta,z
 
+z=x(3)-n_cell_z*nint((x(3))/n_cell_z)
         r=sqrt(x(1)**2+x(2)**2)
-        if (abs(x(3))<=n_cell_z*ratio_z/2d0) then
+        if (abs(z)<=n_cell_z*ratio_z/2d0) then
             in_pipe=r<=radius(2)
-        elseif(abs(x(3))<n_cell_z*ratio_y/2d0.and.abs(x(3))>n_cell_z*ratio_z/2d0) then
+        elseif(abs(z)<n_cell_z*ratio_y/2d0.and.abs(z)>n_cell_z*ratio_z/2d0) then
             theta=(radius(1)-radius(2))/(n_cell_z*ratio_y/2d0-n_cell_z*ratio_z/2d0)
-            in_pipe=r<=(abs(x(3))-n_cell_z*ratio_z/2d0)*theta + radius(2)
+            in_pipe=r<=(abs(z)-n_cell_z*ratio_z/2d0)*theta + radius(2)
         else
             in_pipe=r<=radius(1)
         end if
@@ -25,15 +26,16 @@ contains
 
     logical function in_pipe_phantom(x)
         implicit none
-        real(8) x(3),r,theta
+        real(8) x(3),r,theta,z
         real d
         d=sqrt(5d-1)
+        z=x(3)-n_cell_z*nint((x(3))/n_cell_z)
         r=sqrt(x(1)**2+x(2)**2)
-        if (abs(x(3))<n_cell_z*ratio_z/2d0) then
+        if (abs(z)<n_cell_z*ratio_z/2d0) then
             in_pipe_phantom=r<=radius(2)+d
-        elseif(abs(x(3))<n_cell_z*ratio_y/2d0.and.abs(x(3))>n_cell_z*ratio_z/2d0) then
+        elseif(abs(z)<n_cell_z*ratio_y/2d0.and.abs(z)>n_cell_z*ratio_z/2d0) then
             theta=(radius(1)-radius(2))/(n_cell_z*ratio_y/2d0-n_cell_z*ratio_z/2d0)
-            in_pipe_phantom=r<=(abs(x(3))-n_cell_z*ratio_z/2d0)*theta + radius(2) + d
+            in_pipe_phantom=r<=(abs(z)-n_cell_z*ratio_z/2d0)*theta + radius(2) + d
         else
             in_pipe_phantom=r<=radius(1)+d
         end if
@@ -64,10 +66,10 @@ contains
         implicit none
         real(8) x(3),r,z,theta
         r=sqrt(x(1)**2+x(2)**2)
-        z=x(3)
+        z=x(3)-n_cell_z*nint((x(3))/n_cell_z)
         theta=(radius(1)-radius(2))/(n_cell_z*ratio_y/2d0-n_cell_z*ratio_z/2d0)
         if (r>radius(1).or.(r>radius(2).and.abs(z)<n_cell_z*ratio_z/2d0) .or. &
-                (r>((abs(x(3))-n_cell_z*ratio_z/2d0)*theta + radius(2)) .and. &
+                (r>((abs(z)-n_cell_z*ratio_z/2d0)*theta + radius(2)) .and. &
                 abs(z)<n_cell_z*ratio_y/2d0.and.abs(z)>n_cell_z*ratio_z/2d0))then
             get_region=0
             return

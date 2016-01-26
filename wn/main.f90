@@ -1,12 +1,12 @@
 program Poisellie_field
     use parameters
-
+    use statistics, only: trans_end_t
     implicit none
     integer :: cur_step,equi_file,energy_file,produ_file,velocity_file,coord_velo_file,output_file,left_file
     integer i,j,k,h_p,n_p0
     real(8) :: EK_scaled,T_scaled,r,t,t0,tc0,tc1
     integer,parameter::string_length=80
-    character(string_length) deletion_file,left_monomer_number, hom
+    character(string_length) deletion_file,left_monomer_number,hom
 
     equi_file=912
     !energy_file=913
@@ -66,15 +66,12 @@ program Poisellie_field
     t=0
     write(*,*) ''
     write(*,*)'Equilibrium begin:'
-    !write(*,'(A7,6A12)') 'step', 'BEND','FENE','LJ','total','T_scaled','time'
-    write(*,'(2A7,2A10)') 'step', 'knot','T_scaled','time'
-    write(*,*) '-------------------------------------------------------------------------------'
-    !write(*,'(I7,6F12.3)') 0, U_BEND, U_FENE, U_LJ, U,T_scaled,t
+    call write_table_title()
 
     call clear_stat()
     do cur_step=1,equili_step
         ! write(*,*) U
-        call one_step(cur_step,equili_interval_step, equi_file,0)
+        call one_step(cur_step,equili_interval_step,equi_file,0)
         call stat_velocity(cur_step,equili_interval_step)
     enddo
     call output_velocity(1,velocity_file,coord_velo_file, equili_step,equili_interval_step)
@@ -86,9 +83,7 @@ program Poisellie_field
 
     call update_force(0,1)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    write(*,'(2A7,A10)') 'step', 'knot','T_scaled','time'
-    write(*,*) '-------------------------------------------------------------------------------'
-
+call write_table_title()
     call clear_stat()
     knot_flag=.true.
     do cur_step=1,total_step
@@ -100,11 +95,11 @@ program Poisellie_field
         call one_step(cur_step, produ_interval_step,produ_file,1)
         call stat_velocity(cur_step,produ_interval_step)
 
-            if (.not. knot_flag) then
-                write(*,*) 'the knot has untied'
-                exit
-            end if
-
+           ! if (.not. knot_flag) then
+            !    write(*,*) 'the knot has untied'
+               ! exit
+            !end if
+        if(cur_step-trans_end_t>50000.and.trans_end_t>0)stop
     enddo
     call output_velocity(2,velocity_file,coord_velo_file,total_step,produ_interval_step)
 
