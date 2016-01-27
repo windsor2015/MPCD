@@ -1,5 +1,5 @@
 &basic
-gama=0.001
+gama=0.002
 density_s=5d0
 BEND_b=30d0
 ratio_y=0.5d0
@@ -7,9 +7,9 @@ ratio_z=0.25d0
 radius=4d0,1d0
 
 desk_interval_step=1000
-equili_step=100000
+equili_step=200000
 equili_interval_step=1000
-total_step=3000000
+total_step=2000000
 produ_interval_step=1000
 
 thermostat_method=12, thermostat_interval=10, thermostat_B_parameter=1d-4, thermostat_A_parameter=1d-3
