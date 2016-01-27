@@ -31,10 +31,10 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
         n_p=n_p0
         Rg=stat_gyration(x_p,n_p)
 
-        !call translocation_t(x_p,n_p,cur_step,trans_begin_t,trans_end_t)
-        if(trans_begin_t/=0.and.trans_end_t/=0)then
-            trans_t=trans_end_t-trans_begin_t
-        end if
+        !call translocation_t(x_p,n_p,cur_step)
+        !if(trans_begin_t/=0.and.trans_end_t/=0)then
+        !    trans_t=trans_end_t-trans_begin_t
+        !end if
         !call cal_t(x,n_p,t,hom)
         !测试时只看这一步,用31结测试一下
         call cal_t(x,n_p,string)
@@ -60,21 +60,21 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
 
     subroutine translocation_t(x_p,n_p,cur_step)
         real(8) x_p(3,n_p)
-        integer i,j,cur_step
+        integer cur_step
 
         if(count(x_p(3,:)<-n_cell_z*ratio_z/2d0)==n_p-1 .and. trans_begin_t==-1)then
-            t0=cur_step
+            trans_begin_t=cur_step
         endif
         if(count(x_p(3,:)>n_cell_z*ratio_z/2d0)==n_p-1 .and. trans_end_t==-1)then
-            t=cur_step
+            trans_end_t=cur_step
         end if
     end subroutine
 
-    function return_translocation_t()
+    integer function return_translocation_t()
         return_translocation_t=trans_end_t-trans_begin_t
     end function
 
-!!!!!!!!!传字串给homfly,貌似没用到，传了整数数组
+!!!!!!!!!传字串给homfly,貌似没用到，传了整数数组代替
     subroutine append_string(str0,str)
         character(30) str
         character(1000) str0
@@ -84,7 +84,6 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
         !write(*,*)l1,l2
         str0(l1+1:l1+l2)=str(1:l2)
     end subroutine
-
 
     function inside_triangle(x1,x2,x3,t1,t2)
         implicit none

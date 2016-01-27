@@ -1,6 +1,6 @@
 
 module parameters
-
+use statistics, only : stat_main,translocation_t, return_translocation_t
 #if defined (_T_TUBE)
     use shape_t_tube
 #elif defined (_T_TUBE1)
@@ -313,7 +313,6 @@ contains
 
     end subroutine
 
-
     subroutine exter(flag)
         implicit none
         integer flag
@@ -321,12 +320,27 @@ contains
             f_p(3,1)=f_p(3,1)+20
             f_p(3,n_p)=f_p(3,n_p)-20
         end if
-
     end subroutine
-
-    subroutine update_force(mode,equi_flag)
+    
+    subroutine exter_LJ(f,U,rx,flag)
         implicit none
-        integer mode, i, j, equi_flag
+        real(8) f, U, rx
+        real(8), parameter :: LJ_rc=sigma*2d0**(1d0/6d0)
+        real(8) temp,r
+        integer flag
+        if(flag==0)then
+        r=abs(rx)
+        if(r/=0 .and. r<=LJ_rc)then
+            temp=24d0*epson*(2d0*(sigma/r)**12-(sigma/r)**6)/(r**2)
+            f=f+rx*temp
+            U=U+4*epson*((sigma/r)**12-(sigma/r)**6)
+        endif
+        endif
+    endsubroutine
+    
+    subroutine update_force(mode,equi_flag,cur_step)
+        implicit none
+        integer mode, i, j, equi_flag, cur_step
         real(8) temp(3)
 
         f_p=0
@@ -355,11 +369,15 @@ contains
                     call LJ(f_p(:,i),U_LJ,x_p(:,i)-x_p(:,j))
                 endif
             enddo
-
+            
+           call exter_LJ(f_p(3,i),U_LJ,x_p(3,i)+n_cell_z*ratio_z/2d0,equi_flag)
         enddo
         !$omp end parallel do
-        call exter(equi_flag)
-
+        
+        if(cur_step<=equili_step/2)then
+          call exter(equi_flag)
+        endif
+        
         U=U_FENE+U_BEND+U_LJ
 
         if (mode==0) then
@@ -768,16 +786,22 @@ contains
         endif
     end subroutine
 
-    subroutine write_table_title()
+    subroutine write_table_title(equili_force,stat_result_file)
+        implicit none
+        integer equili_force,stat_result_file
         write(*,'(A7,3A10,A7,A7,A20)') 'step', 'time','T_scaled','Rg','knot','tran_t','homfly'
         write(*,*) '-------------------------------------------------------------------------------'
+        if(equili_force==1)then
+        write(stat_result_file,'(A7,A10,A7,A7,A20)') 'step','Rg','knot','tran_t','homfly'
+        write(stat_result_file,*) '-------------------------------------------------------------------------------'     
+        endif
     end subroutine
 
-    subroutine one_step(cur_step,interval_step,output_file,trans_end_t,equili_force)
-        use statistics, only : stat_main, translocation_t, return_translocation_t
+    subroutine one_step(cur_step,interval_step,output_file,equili_force,stat_result_file)
+        use statistics, only : stat_main, translocation_t, return_translocation_t,trans_begin_t,trans_end_t
         implicit none
 
-        integer cur_step, output_file, i, interval_step,equili_force,n_p1, tt
+        integer cur_step, output_file, i, interval_step,equili_force,n_p1,tt,stat_result_file
         real(8) :: EK_scaled,T_scaled,t,min_z,min_z0,count_z,Rg
         character(80) string
 
@@ -805,7 +829,7 @@ contains
             call bounce_back(x_p,x0_p,v_p,n_p)
 
             call periodic_p()
-            call update_force(1,equili_force)
+            call update_force(1,equili_force,cur_step)
             v_p = v_p + 0.5*(f0_p+f_p)*time_step_p
             f0_p=f_p
         enddo
@@ -819,8 +843,12 @@ contains
             call Ek_T(EK_scaled, T_scaled)
             call get_time(t)
             call stat_main(cur_step,x_p,n_p,n_p1,string,Rg)
-           tt=return_translocation_t()   !!!记录穿孔时间，先输出看下
+             tt=return_translocation_t()  
+             write(*,*)trans_end_t,trans_begin_t
             write(*,'(I7,3F10.3,I7,I7,5x,A)') cur_step,t-time0,T_scaled,Rg,n_p1,tt,trim(string)
+            if(equili_force==1)then
+            write(stat_result_file,'(I7,F10.3,2I7,5x,A)') cur_step,Rg,n_p1,tt,trim(string)
+            endif
             if (output_sketch/=0) then
                 call output_sketch_sub()
             end if

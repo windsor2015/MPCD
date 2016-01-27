@@ -2,11 +2,11 @@ program Poisellie_field
     use parameters
     use statistics, only: trans_end_t
     implicit none
-    integer :: cur_step,equi_file,energy_file,produ_file,velocity_file,coord_velo_file,output_file,left_file
+    integer :: cur_step,equi_file,energy_file,produ_file,velocity_file,coord_velo_file,output_file,left_file,stat_result_file
     integer i,j,k,h_p,n_p0
     real(8) :: EK_scaled,T_scaled,r,t,t0,tc0,tc1
     integer,parameter::string_length=80
-    character(string_length) deletion_file,left_monomer_number, hom
+    character(string_length) deletion_file,left_monomer_number,hom
 
     equi_file=912
     !energy_file=913
@@ -15,6 +15,7 @@ program Poisellie_field
     coord_velo_file=916
     output_file=917
     left_file=918
+    stat_result_file=919
     deletion_file='dump.deletion.lammpstrj'
     left_monomer_number='left_monomer.out'
 
@@ -39,6 +40,7 @@ program Poisellie_field
     open(coord_velo_file,file='coordinate_velocity')
     open(output_file,file=deletion_file)
     open(left_file,file=left_monomer_number)
+    open(stat_result_file,file='stat_result_file')
 
     call init()
     call thermostat_init()
@@ -61,17 +63,17 @@ program Poisellie_field
     write(*,*) 'Initial scaled temperature T_scaled: ',T_scaled
 
     ! 没有外场时，polymer和solution达到平衡
-    call update_force(0,0)
+    call update_force(0,0,0)
 
     t=0
     write(*,*) ''
     write(*,*)'Equilibrium begin:'
-    call write_table_title()
+    call write_table_title(0,stat_result_file)
 
     call clear_stat()
     do cur_step=1,equili_step
         ! write(*,*) U
-        call one_step(cur_step,equili_interval_step, equi_file,0)
+        call one_step(cur_step,equili_interval_step,equi_file,0,stat_result_file)
         call stat_velocity(cur_step,equili_interval_step)
     enddo
     call output_velocity(1,velocity_file,coord_velo_file, equili_step,equili_interval_step)
@@ -81,9 +83,9 @@ program Poisellie_field
 
     !!! compute a(t-dt)
 
-    call update_force(0,1)
+    call update_force(0,1,0)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-call write_table_title()
+call write_table_title(1,stat_result_file)
     call clear_stat()
     knot_flag=.true.
     do cur_step=1,total_step
@@ -92,14 +94,14 @@ call write_table_title()
             v_s(3,:) = v_s(3,:) + gama !- gama*(x_s(1,:)**2+x_s(2,:)**2)/radius**2
         end if
 
-        call one_step(cur_step, produ_interval_step,produ_file,trans_end_t,1)
+        call one_step(cur_step, produ_interval_step,produ_file,1,stat_result_file)
         call stat_velocity(cur_step,produ_interval_step)
 
            ! if (.not. knot_flag) then
             !    write(*,*) 'the knot has untied'
                ! exit
             !end if
-        if(cur_step-trans_end_t>50000)stop
+        if(cur_step-trans_end_t>50000.and.trans_end_t>0)stop
     enddo
     call output_velocity(2,velocity_file,coord_velo_file,total_step,produ_interval_step)
 
@@ -108,6 +110,7 @@ call write_table_title()
     close(produ_file)
     close(velocity_file)
     close(coord_velo_file)
+    close(stat_result_file)
     write(*,*)
     write(*,*) 'end at'
     call output_date()
