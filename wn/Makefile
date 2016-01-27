@@ -6,38 +6,19 @@ SRCS_d1 = \
 Makefile \
 input_file
 
-SRCS_f90d1 = \
-main.f90 \
-shape_t_tube1.f90 \
-shape_all.f90 \
-shape_cylinder.f90 \
-shape_funnel.f90 \
-parameters.f90 \
-shape_t_tube.f90
+SRCS_f90d1 = $(wildcard *.f90)
+OBJS_f90d1 = $(SRCS_f90d1:.f90=.o)
 
-OBJS_d1 = \
-
-
-OBJS_f90d1 = \
-main.o \
-shape_t_tube1.o \
-shape_all.o \
-shape_cylinder.o \
-shape_funnel.o \
-parameters.o \
-shape_t_tube.o
-
+ 
 SRC_DIR_d1 =
-
 SRC_DIR_f90d1 =
 OBJS_DIR = obj/
 EXE_DIR = ./
-
 EXE = wn
 FC = ifort
 IDIR =
 CFLAGS = -fpp -openmp -O3 -finline-functions -funroll-loops -I. -ipo -xHost -mkl -module $(OBJS_DIR)
-LFLAGS = -O3 -L. -s -mkl -ipo -xHost -openmp
+LFLAGS = -O3 -L. -s -mkl -ipo -xHost -openmp -lhomfly
 LIBS =
 
 VPATH = $(SRC_DIR_d1):$(OBJS_DIR):$(SRC_DIR_f90d1):$(OBJS_DIR)
@@ -76,27 +57,30 @@ clean :
 	rm -f $(EXE_DIR)$(EXE)
 
 # Dependencies of files
-main.o: \
-    main.f90 \
-    parameters.o
-shape_t_tube1.o: \
-    shape_t_tube1.f90 \
-    shape_all.o
-shape_all.o: \
-    shape_all.f90
-shape_cylinder.o: \
-    shape_cylinder.f90 \
-    shape_all.o
-parameters.o: \
-    parameters.f90 \
-    shape_cylinder.o \
-    shape_t_tube.o \
-    shape_t_tube1.o \
-    shape_funnel.o
 shape_t_tube.o: \
     shape_t_tube.f90 \
     shape_all.o
 shape_funnel.o: \
     shape_funnel.f90 \
     shape_all.o
-
+shape_t_tube1.o: \
+    shape_t_tube1.f90 \
+    shape_all.o
+shape_cylinder.o: \
+    shape_cylinder.f90 \
+    shape_all.o
+shape_all.o: \
+    shape_all.f90
+statistics.o: \
+    statistics.f90 \
+    shape_all.o
+main.o: \
+    main.f90 \
+    parameters.o
+parameters.o: \
+    parameters.f90 \
+    shape_cylinder.o \
+    shape_funnel.o \
+    shape_t_tube.o \
+    shape_t_tube1.o \
+    statistics.o
