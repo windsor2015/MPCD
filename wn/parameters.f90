@@ -317,11 +317,11 @@ contains
         implicit none
         integer flag
         if(flag==0)then
-            f_p(3,1)=f_p(3,1)+20
-            f_p(3,n_p)=f_p(3,n_p)-20
+            f_p(3,1)=f_p(3,1)+30
+            f_p(3,n_p)=f_p(3,n_p)-30
         end if
     end subroutine
-    
+
     subroutine exter_LJ(f,U,rx,flag)
         implicit none
         real(8) f, U, rx
@@ -337,7 +337,7 @@ contains
         endif
         endif
     endsubroutine
-    
+
     subroutine update_force(mode,equi_flag,cur_step)
         implicit none
         integer mode, i, j, equi_flag, cur_step
@@ -369,15 +369,15 @@ contains
                     call LJ(f_p(:,i),U_LJ,x_p(:,i)-x_p(:,j))
                 endif
             enddo
-            
+
            call exter_LJ(f_p(3,i),U_LJ,x_p(3,i)+n_cell_z*ratio_z/2d0,equi_flag)
         enddo
         !$omp end parallel do
-        
+
         if(cur_step<=equili_step/2)then
           call exter(equi_flag)
         endif
-        
+
         U=U_FENE+U_BEND+U_LJ
 
         if (mode==0) then
@@ -789,20 +789,20 @@ contains
     subroutine write_table_title(equili_force,stat_result_file)
         implicit none
         integer equili_force,stat_result_file
-        write(*,'(A7,3A10,A7,A7,A20)') 'step', 'time','T_scaled','Rg','knot','tran_t','homfly'
+        write(*,'(A7,5A10,A7,A20)') 'step', 'time','T_scaled','Rg','c_axis','std_de','knot','homfly'
         write(*,*) '-------------------------------------------------------------------------------'
         if(equili_force==1)then
-        write(stat_result_file,'(A7,A10,A7,A7,A20)') 'step','Rg','knot','tran_t','homfly'
-        write(stat_result_file,*) '-------------------------------------------------------------------------------'     
+        write(stat_result_file,'(A7,3A10,A7,A20)') 'step','Rg','c_axis','std_de','knot','homfly'
+        write(stat_result_file,*) '-------------------------------------------------------------------------------'
         endif
     end subroutine
 
     subroutine one_step(cur_step,interval_step,output_file,equili_force,stat_result_file)
-        use statistics, only : stat_main, translocation_t, return_translocation_t,trans_begin_t,trans_end_t
+        use statistics, only : stat_main, translocation_t, return_translocation_t,trans_begin_t,trans_end_t,unknot_t
         implicit none
 
-        integer cur_step, output_file, i, interval_step,equili_force,n_p1,tt,stat_result_file
-        real(8) :: EK_scaled,T_scaled,t,min_z,min_z0,count_z,Rg
+        integer cur_step, output_file, i, interval_step,equili_force,n_p1,stat_result_file,trans_unknot_type
+        real(8) :: EK_scaled,T_scaled,t,min_z,min_z0,count_z,Rg,c_axis,std_deviation
         character(80) string
 
         ! solvent
@@ -835,19 +835,18 @@ contains
         enddo
 
         call cal_collision_velocity(cur_step)
-        if (equili_force/=0)call translocation_t(x_p,n_p,cur_step)
 
         if (thermostat_method<10) call thermostat(cur_step)
 
         if(mod(cur_step,desk_interval_step)==0)then
             call Ek_T(EK_scaled, T_scaled)
             call get_time(t)
-            call stat_main(cur_step,x_p,n_p,n_p1,string,Rg)
-             tt=return_translocation_t()  
-             write(*,*)trans_end_t,trans_begin_t
-            write(*,'(I7,3F10.3,I7,I7,5x,A)') cur_step,t-time0,T_scaled,Rg,n_p1,tt,trim(string)
+            call stat_main(cur_step,x_p,n_p,n_p1,string,Rg,c_axis,std_deviation)
+
+            if(n_p1==0.and.unknot_t==-1) unknot_t=cur_step    !!!!!记录结点为0的第一次时刻
+            write(*,'(I7,5F10.3,I7,5x,A)') cur_step,t-time0,T_scaled,Rg,c_axis,std_deviation,n_p1,trim(string)
             if(equili_force==1)then
-            write(stat_result_file,'(I7,F10.3,2I7,5x,A)') cur_step,Rg,n_p1,tt,trim(string)
+            write(stat_result_file,'(I7,3F10.3,I7,5x,A)') cur_step,Rg,c_axis,std_deviation,n_p1,trim(string)
             endif
             if (output_sketch/=0) then
                 call output_sketch_sub()

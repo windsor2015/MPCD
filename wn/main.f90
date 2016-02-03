@@ -1,9 +1,9 @@
 program Poisellie_field
     use parameters
-    use statistics, only: trans_end_t
+    use statistics, only: trans_begin_t,trans_end_t,trans_unknot_type,translocation_t,return_translocation_t,unknot_t,z0
     implicit none
     integer :: cur_step,equi_file,energy_file,produ_file,velocity_file,coord_velo_file,output_file,left_file,stat_result_file
-    integer i,j,k,h_p,n_p0
+    integer i,j,k,h_p,n_p0,trans_unknot,tt
     real(8) :: EK_scaled,T_scaled,r,t,t0,tc0,tc1
     integer,parameter::string_length=80
     character(string_length) deletion_file,left_monomer_number,hom
@@ -56,7 +56,6 @@ program Poisellie_field
     call thermostat_I()
     !call cal_collision_velocity(0)
     call Ek_T(EK_scaled,T_scaled)
-
     write(*,*) ''
     write(*,*) 'Initial scaled kinetics Ek_scaled: ',Ek_scaled
     write(*,*) 'Initial setted temperature T_set: ',T_set
@@ -101,16 +100,24 @@ call write_table_title(1,stat_result_file)
             !    write(*,*) 'the knot has untied'
                ! exit
             !end if
-        if(cur_step-trans_end_t>50000.and.trans_end_t>0)stop
+
+           call translocation_t(x_p,n_p,cur_step)
+             tt=return_translocation_t()
+!             n_pl=n_p
+!            call removeparticle(x_p,n_pl,cur_step)
+!            if(n_pl==0.and.unknot_t==-1) unknot_t=cur_step    !!!!!记录结点为0的第一次时刻
+        if(cur_step-trans_end_t>200000.and.trans_end_t>0)exit
     enddo
     call output_velocity(2,velocity_file,coord_velo_file,total_step,produ_interval_step)
-
+    trans_unknot=trans_unknot_type()
     close(equi_file)
     !close(energy_file)
     close(produ_file)
     close(velocity_file)
     close(coord_velo_file)
     close(stat_result_file)
+    write(*,*)trans_end_t,trans_begin_t,tt
+    write(*,*)'trans_unknot type is:', trans_unknot
     write(*,*)
     write(*,*) 'end at'
     call output_date()

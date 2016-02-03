@@ -1,10 +1,10 @@
 module statistics
     use shape_all , only: ratio_z, n_cell_z, n_p
     integer :: n_p_const=100
-    real(8) x(4,100)
+    real(8) x(4,100), z0(3000000)
 
     integer :: trans_end_t=-1, trans_begin_t=-1
-
+    integer :: unknot_t=-1
     interface
         subroutine homfly(content,n,string) bind(C, name='homfly')
             import
@@ -15,11 +15,11 @@ module statistics
     endinterface
 contains
 
-subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
+subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
 
         integer n_p,n_p0,cur_step,i,trans_t
         character(80) string
-        real(8) x_p(3,n_p0),Rg
+        real(8) x_p(3,n_p0),Rg,c_axis,std_deviation
 
         n_p_const=n_p0
 
@@ -29,7 +29,7 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
         end do
 
         n_p=n_p0
-        Rg=stat_gyration(x_p,n_p)
+        call stat_gyration(x_p,n_p,Rg,c_axis,std_deviation)
 
         !call translocation_t(x_p,n_p,cur_step)
         !if(trans_begin_t/=0.and.trans_end_t/=0)then
@@ -42,8 +42,8 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
 
     end subroutine
 
-    function stat_gyration(x_p,n_p) result(Rg)
-        real(8) Rg,xc(3),x_p(3,n_p)
+    subroutine stat_gyration(x_p,n_p,Rg,c_axis,std_deviation)   !result(Rg,c_axis,std_deviation)
+        real(8) Rg,xc(3),x_p(3,n_p),c_axis,coord(n_p),std_deviation
         integer i
         xc=0d0
         Rg=0d0
@@ -56,7 +56,12 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
         Rg=sum((x_p(1,:)-xc(1))**2)+sum((x_p(2,:)-xc(2))**2)+sum((x_p(3,:)-xc(3))**2)
         Rg=sqrt(Rg/n_p)
 
-    end function
+        coord(:)=sqrt(x_p(1,:)**2+x_p(2,:)**2)
+        c_axis=sum(coord(:))
+        c_axis=c_axis/n_p
+         std_deviation=sum((coord(:)-c_axis)**2)
+         std_deviation=sqrt(std_deviation/n_p)
+    end subroutine   !function
 
     subroutine translocation_t(x_p,n_p,cur_step)
         real(8) x_p(3,n_p)
@@ -73,6 +78,37 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
     integer function return_translocation_t()
         return_translocation_t=trans_end_t-trans_begin_t
     end function
+
+!!!!!!!!!穿孔散结类型!!!!!!!!!!
+    integer function trans_unknot_type() !result(trans_unknot_type)
+
+        if (trans_begin_t>0 .and. trans_end_t>0) then
+!            if(unknot_t<trans_begin_t)then
+!                trans_unknot_type=1
+!            elseif(unknot_t<trans_end_t .and. unknot_t>trans_begin_t)then
+!                trans_unknot_type=2
+!            elseif(unknot_t>trans_end_t)then
+!                trans_unknot_type=3
+!            elseif(unknot_t==-1)then
+!                trans_unknot_type=4
+!            end if
+             if(z0(unknot_t-1000)<-n_cell_z*ratio_z/2d0)then
+                trans_unknot_type=1
+             elseif(z0(unknot_t-1000)<=n_cell_z*ratio_z/2d0 .and. z0(unknot_t-1000)>=-n_cell_z*ratio_z/2d0)then
+                trans_unknot_type=2
+             elseif(z0(unknot_t-1000)>n_cell_z*ratio_z/2d0)then
+                trans_unknot_type=3
+             elseif(unknot_t==-1)then
+                trans_unknot_type=4
+             end if
+        elseif(trans_begin_t>0 .and. trans_end_t==-1)then
+                trans_unknot_type=5
+        elseif(trans_begin_t==-1 .and. trans_end_t==-1)then
+                trans_unknot_type=6
+        end if
+    end function
+
+!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!传字串给homfly,貌似没用到，传了整数数组代替
     subroutine append_string(str0,str)
@@ -405,8 +441,8 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
     end subroutine
 
     subroutine removeparticle(x,n_p,q)
-        integer n_p, n_p0,i, j, t, i1, i2, i3, minj, maxj,output_file,q,c
-        real(8) x(4,n_p),x0(4,n_p)
+        integer n_p, n_p0,i,q
+        real(8) x(4,n_p),x0(4,n_p),zk(n_p,3)
         integer n_pk(3)
         integer:: method=0
 
@@ -414,19 +450,27 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
         n_p0=n_p
 
         call removeparticle1(x,n_p,q)
+        zk(:,1)=x(3,:)
         n_pk(1)=n_p
         x=x0
         n_p=n_p0
         call removeparticle2(x,n_p,q)
+        zk(:,2)=x(3,:)
         n_pk(2)=n_p
         x=x0
         n_p=n_p0
         call removeparticle3(x,n_p,q)
+        zk(:,3)=x(3,:)
         n_pk(3)=n_p
         x=x0
         n_p=n_p0
 
         n_p=minval(n_pk, n_pk>=0)
+        do i=1,3
+            if(n_p==n_pk(i))then
+              z0(q)=sum(zk(:,i))/n_p
+            end if
+        end do
     end subroutine
 
     subroutine cal_t(x,n_p,string)
@@ -438,7 +482,7 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
         integer content(1000),n
         character(80) string
 
-        string=achar(0)
+        string=' '
         string='0'
 
         xp(1,:)=x(2,:)
@@ -555,6 +599,11 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg)
         !write(*,*) content(1:n)
 
         call homfly(content, n, string)
+        do i=1,80
+            if (iachar(string(i:i))<32) then
+                string(i:i)=' '
+            end if
+        end do
         !write(*,*) string
         !stop
     end subroutine
