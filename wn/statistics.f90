@@ -468,7 +468,7 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
         n_p=minval(n_pk, n_pk>=0)
         do i=1,3
             if(n_p==n_pk(i))then
-              z0(q)=sum(zk(:,i))/n_p
+              z0(q)=sum(zk(1:n_p,i))/n_p
             end if
         end do
     end subroutine
