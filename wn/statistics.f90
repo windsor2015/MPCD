@@ -44,7 +44,7 @@ contains
 
     subroutine stat_gyration(x_p,n_p,Rg,c_axis,std_deviation)   !result(Rg,c_axis,std_deviation)
         real(8) Rg,xc(3),x_p(3,n_p),c_axis,coord(n_p),std_deviation
-        integer i
+        integer i,n_p
         xc=0d0
         Rg=0d0
 
@@ -65,7 +65,7 @@ contains
 
     subroutine translocation_t(x_p,n_p,cur_step)
         real(8) x_p(3,n_p)
-        integer cur_step
+        integer cur_step,n_p
 
         if(count(x_p(3,:)<-n_cell_z*ratio_z/2d0)==n_p-1 .and. trans_begin_t==-1)then
             trans_begin_t=cur_step
@@ -163,9 +163,9 @@ contains
     end function
 
     subroutine connect(x,n)
-        integer f,i,j
+        integer f,i,j,n
         real(8) rz,x(4,n)
-        parameter(r0=7)
+        real(8),parameter::r0=7
         !n_cell_z=40
         do i=2,n
             rz=x(3,i)-x(3,i-1)
@@ -205,25 +205,15 @@ contains
     end subroutine
 
     !input prmeter never chned
-    subroutine removeparticle1(x0,n_p0,cur_tep,mode,n_reult)
-        integer n_p0, n_p, i, j, t, i1, i2, i3, minj, maxj,output_file,q
+    subroutine removeparticle1(x0,n_p0,cur_tep,mode,n_reult,z)
+        integer n_p0, n_p, i, j, t, i1, i2, i3, minj, maxj,output_file,q,mode
         integer i_ein,i_end,i_tep,select_i,cur_tep,n_reult
         real(8) x(4,n_p0), x0(4,n_p0)
         logical removed, t_f
         real(8) maxcos, curcos
-        real(8) r1(3),r2(3),poition
+        real(8) r1(3),r2(3),z
 
         removed=.true.
-        select case(mode)
-            case(1)
-                i_ein=2
-                i_end=n_p0-1
-                i_tep=1
-            case(2)
-                i_ein=n_p0-1
-                i_end=2
-                i_tep=-1
-        endselect
 
         x=x0
         n_p=n_p0
@@ -236,6 +226,16 @@ contains
             select_i=-1
             select case(mode)
                 case(1,2)
+                    if(mode==1)then
+                        i_ein=2
+                        i_end=n_p-1
+                        i_tep=1
+                    else
+                        i_ein=n_p-1
+                        i_end=2
+                        i_tep=-1
+                    endif
+                    !write(*,*)i_ein,i_end,i_tep
                     do i=i_ein,i_end,i_tep
                         t=0
                         ! 线段
@@ -244,13 +244,13 @@ contains
                                 t_f = inside_triangle(x(1:3,i),x(1:3,i+1),x(1:3,i-1),x(1:3,j),x(1:3,j+1))
                                 if (t_f) then
                                     t=t+1
-                                    !write(*,*) i,j,t_f
+                                    !write(*,*) i,j,n_p,t_f
                                     exit
                                 endif
                             endif
                         enddo
                         if (t==0)then
-                            select_i=i+1
+                            select_i=i
                             exit
                         end if
                         !如果t为0, 可以被移除, 如果t不是0则不能移除
@@ -309,8 +309,8 @@ contains
             if (n_p<=2) exit
         enddo
 
-        call met_on_one(x,n_p,x0,n_p0,n_reult,poition)
-        write(*,*) n_p,n_p0
+        call met_on_one(x,n_p,x0,n_p0,n_reult,z)
+        !write(*,*) n_p,n_p0,n_reult
         !call output(output_file,q)
 
     end subroutine
@@ -319,7 +319,8 @@ contains
     subroutine met_on_one(x_,n_,x_m,n_m,ize,poition)
         integer n_,n_m,ize
         real(8) x_(4,n_),x_m(4,n_m),poition
-        integer i1,i2,i3,minj,mxj,j
+        integer i1,i2,i3,minj,maxj,j
+
         if (n_>2) then
             minj=n_m
             maxj=0
@@ -341,32 +342,22 @@ contains
         else
             ize=0
         end if
+        poition=sum(x_m(3,minj:maxj))*ize**(-1)
     endsubroutine
 
     subroutine removeparticle(x,n_p,q)
         integer n_p, n_p0,i,q,n_reult
-        real(8) x(4,n_p),x0(4,n_p),zk(n_p,3)
+        real(8) x(4,n_p),x0(4,n_p),zk(3),z
         integer n_pk(3)
         integer:: method=0
 
-        call removeparticle1(x,n_p,q,1,n_reult)
-        zk(:,1)=x(3,:)
-        n_pk(1)=n_reult
-
-        !call removeparticle1(x,n_p,q,2,n_reult)
-        zk(:,2)=x(3,:)
-        n_pk(2)=n_reult
-
-        !call removeparticle1(x,n_p,q,3,n_reult)
-        zk(:,3)=x(3,:)
-        n_pk(3)=n_reult
-        !write(*,*)x
+        call removeparticle1(x,n_p,q,1,n_pk(1),zk(1))
+        call removeparticle1(x,n_p,q,2,n_pk(2),zk(2))
+        call removeparticle1(x,n_p,q,3,n_pk(3),zk(3))
+        write(*,*)n_pk
         n_p=minval(n_pk, n_pk>=0)
-        do i=1,3
-            if(n_p==n_pk(i))then
-                z0(q)=sum(zk(1:n_p,i))/n_p
-            end if
-        end do
+        z0(q)=zk(minloc(n_pk,1,n_pk>=0))
+
     end subroutine
 
     subroutine cal_t(x,n_p,string)
