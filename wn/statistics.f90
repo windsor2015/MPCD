@@ -15,7 +15,7 @@ module statistics
     endinterface
 contains
 
-subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
+    subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
 
         integer n_p,n_p0,cur_step,i,trans_t
         character(80) string
@@ -36,7 +36,7 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
         !    trans_t=trans_end_t-trans_begin_t
         !end if
         !call cal_t(x,n_p,t,hom)
-        !æµ‹è¯•æ—¶åªçœ‹è¿™ä¸€æ­¥,ç”¨31ç»“æµ‹è¯•ä¸€ä¸‹
+        !²âÊÔÊ±Ö»¿´ÕâÒ»²½,ÓÃ31½á²âÊÔÒ»ÏÂ
         call cal_t(x,n_p,string)
         call removeparticle(x,n_p,cur_step)
 
@@ -59,8 +59,8 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
         coord(:)=sqrt(x_p(1,:)**2+x_p(2,:)**2)
         c_axis=sum(coord(:))
         c_axis=c_axis/n_p
-         std_deviation=sum((coord(:)-c_axis)**2)
-         std_deviation=sqrt(std_deviation/n_p)
+        std_deviation=sum((coord(:)-c_axis)**2)
+        std_deviation=sqrt(std_deviation/n_p)
     end subroutine   !function
 
     subroutine translocation_t(x_p,n_p,cur_step)
@@ -79,38 +79,38 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
         return_translocation_t=trans_end_t-trans_begin_t
     end function
 
-!!!!!!!!!ç©¿å­”æ•£ç»“ç±»å‹!!!!!!!!!!
+    !!!!!!!!!´©¿×É¢½áÀàĞÍ!!!!!!!!!!
     integer function trans_unknot_type() !result(trans_unknot_type)
 
         if (trans_begin_t>0 .and. trans_end_t>0) then
-!            if(unknot_t<trans_begin_t)then
-!                trans_unknot_type=1
-!            elseif(unknot_t<trans_end_t .and. unknot_t>trans_begin_t)then
-!                trans_unknot_type=2
-!            elseif(unknot_t>trans_end_t)then
-!                trans_unknot_type=3
-!            elseif(unknot_t==-1)then
-!                trans_unknot_type=4
-!            end if
-             if(z0(unknot_t-1000)<-n_cell_z*ratio_z/2d0)then
+            !            if(unknot_t<trans_begin_t)then
+            !                trans_unknot_type=1
+            !            elseif(unknot_t<trans_end_t .and. unknot_t>trans_begin_t)then
+            !                trans_unknot_type=2
+            !            elseif(unknot_t>trans_end_t)then
+            !                trans_unknot_type=3
+            !            elseif(unknot_t==-1)then
+            !                trans_unknot_type=4
+            !            end if
+            if(z0(unknot_t-1000)<-n_cell_z*ratio_z/2d0)then
                 trans_unknot_type=1
-             elseif(z0(unknot_t-1000)<=n_cell_z*ratio_z/2d0 .and. z0(unknot_t-1000)>=-n_cell_z*ratio_z/2d0)then
+            elseif(z0(unknot_t-1000)<=n_cell_z*ratio_z/2d0 .and. z0(unknot_t-1000)>=-n_cell_z*ratio_z/2d0)then
                 trans_unknot_type=2
-             elseif(z0(unknot_t-1000)>n_cell_z*ratio_z/2d0)then
+            elseif(z0(unknot_t-1000)>n_cell_z*ratio_z/2d0)then
                 trans_unknot_type=3
-             elseif(unknot_t==-1)then
+            elseif(unknot_t==-1)then
                 trans_unknot_type=4
-             end if
+            end if
         elseif(trans_begin_t>0 .and. trans_end_t==-1)then
-                trans_unknot_type=5
+            trans_unknot_type=5
         elseif(trans_begin_t==-1 .and. trans_end_t==-1)then
-                trans_unknot_type=6
+            trans_unknot_type=6
         end if
     end function
 
-!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!
 
-!!!!!!!!!ä¼ å­—ä¸²ç»™homfly,è²Œä¼¼æ²¡ç”¨åˆ°ï¼Œä¼ äº†æ•´æ•°æ•°ç»„ä»£æ›¿
+    !!!!!!!!!´«×Ö´®¸øhomfly,Ã²ËÆÃ»ÓÃµ½£¬´«ÁËÕûÊıÊı×é´úÌæ
     subroutine append_string(str0,str)
         character(30) str
         character(1000) str0
@@ -204,155 +204,56 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
 
     end subroutine
 
-    subroutine removeparticle1(x,n_p,q)
+    !input prmeter never chned
+    subroutine removeparticle1(x0,n_p0,cur_tep,mode,n_reult)
         integer n_p0, n_p, i, j, t, i1, i2, i3, minj, maxj,output_file,q
-        real(8) x(4,n_p), x0(4,n_p)
-        logical removed, t_f
-
-        removed=.true.
-
-        x0=x
-        n_p0=n_p
-        !call output(output_file,q)
-
-        do while (removed)
-            removed=.false.
-            ! æ£€æŸ¥ç²’å­
-            !call output(output_file,q)
-            do i=n_p-2,1,-1
-                t=0
-                ! çº¿æ®µ
-                do j=1,n_p-1
-                    if ( j+1<i .or. j>i+2 ) then
-                        t_f = inside_triangle(x(1:3,i),x(1:3,i+1),x(1:3,i+2),x(1:3,j),x(1:3,j+1))
-                        if (t_f) then
-                            t=t+1
-                            !write(*,*) i,j,t_f
-                        endif
-                    endif
-                enddo
-                if (t==0)exit
-                !å¦‚æœtä¸º0, å¯ä»¥è¢«ç§»é™¤, å¦‚æœtä¸æ˜¯0åˆ™ä¸èƒ½ç§»é™¤
-            enddo
-            if(t==0)then
-                x(1:4,i+1:n_p-1) = x(1:4,i+2:n_p)
-                n_p=n_p-1
-                removed=.true.
-            endif
-            ! write(*,*)n_p
-            if (n_p<=2) exit
-        enddo
-
-        if (n_p>2) then
-            minj=n_p0
-            maxj=0
-            ! write(*,*)n_p,n_p0
-            do i1=2,n_p-3; do i2=i1+1,n_p-2; do i3=i2+1,n_p-1
-                do j=1,n_p0-1
-                    if ( j+1<x(4,i1) .or. j>x(4,i3) ) then
-                        if (inside_triangle(x(:,i1),x(:,i2),x(:,i3),x0(:,j),x0(:,j+1))) then
-                            minj=min(j,minj,int(x(4,i1))-1)
-                            maxj=max(j+1,maxj,int(x(4,i3))+1)
-                            !write(*,*) i1,i2,i3,j
-                        end if
-                    endif
-                end do
-            enddo; enddo; enddo
-            !write(*,*) minj, maxj
-        end if
-        !x(:,1:maxj-minj+1)=x0(:,minj:maxj)
-        n_p=maxj-minj+1
-        !write(*,*) minj, maxj,q,n_p
-        !call output(output_file,q)
-
-    end subroutine
-
-    subroutine removeparticle2(x,n_p,q)
-        integer n_p0, n_p, i, j, t, i1, i2, i3, minj, maxj,output_file,q
-        real(8) x(4,n_p), x0(4,n_p)
-        logical removed, t_f
-
-        removed=.true.
-
-        x0=x
-        n_p0=n_p
-        !call output(output_file,q)
-
-        do while (removed)
-            removed=.false.
-            ! æ£€æŸ¥ç²’å­
-            !call output(output_file,q)
-            do i=1,n_p-2
-                t=0
-                ! çº¿æ®µ
-                do j=1,n_p-1
-                    if ( j+1<i .or. j>i+2 ) then
-                        t_f = inside_triangle(x(1:3,i),x(1:3,i+1),x(1:3,i+2),x(1:3,j),x(1:3,j+1))
-                        if (t_f) then
-                            t=t+1
-                            !write(*,*) i,j,t_f
-                        endif
-                    endif
-                enddo
-                if (t==0)exit
-                !å¦‚æœtä¸º0, å¯ä»¥è¢«ç§»é™¤, å¦‚æœtä¸æ˜¯0åˆ™ä¸èƒ½ç§»é™¤
-            enddo
-            if(t==0)then
-                x(1:4,i+1:n_p-1) = x(1:4,i+2:n_p)
-                n_p=n_p-1
-                removed=.true.
-            endif
-            ! write(*,*)n_p
-            if (n_p<=2) exit
-        enddo
-        !write(*,*)x(4,1:n_p)
-        if (n_p>2) then
-            minj=n_p0
-            maxj=0
-            ! write(*,*)n_p,n_p0
-            do i1=2,n_p-3; do i2=i1+1,n_p-2; do i3=i2+1,n_p-1
-                do j=1,n_p0-1
-                    if ( j+1<x(4,i1) .or. j>x(4,i3) ) then
-                        if (inside_triangle(x(:,i1),x(:,i2),x(:,i3),x0(:,j),x0(:,j+1))) then
-                            minj=min(j,minj,int(x(4,i1))-1)
-                            maxj=max(j+1,maxj,int(x(4,i3))+1)
-                            !write(*,*) i1,i2,i3,j
-                        end if
-                    endif
-                end do
-            enddo; enddo; enddo
-            !write(*,*) minj, maxj
-        end if
-        !x(:,1:maxj-minj+1)=x0(:,minj:maxj)
-        n_p=maxj-minj+1
-        !write(*,*) minj, maxj,q,n_p
-        !call output(output_file,q)
-
-    end subroutine
-
-    subroutine removeparticle3(x,n_p,q)
-        integer n_p0, n_p, i, j, t, i1, i2, i3, minj, maxj,output_file,q
-        real(8) x(4,n_p), x0(4,n_p), r1(3),r2(3)
+        integer i_ein,i_end,i_tep,select_i,cur_tep,n_reult
+        real(8) x(4,n_p0), x0(4,n_p0)
         logical removed, t_f
         real(8) maxcos, curcos
-        integer select_i, k, kk, n_pk(2)
-        integer:: method=0
+        real(8)r1(3),r2(3)
 
         removed=.true.
+        select case(mode)
+            case(1)
+                i_ein=1
+                i_end=n_p-2
+                i_tep=1
+            case(2)
+                i_ein=n_p-2
+                i_end=1
+                i_tep=-1
+        endselect
 
-        x0=x
-        n_p0=n_p
+        x=x0
+        n_p=n_p0
         !call output(output_file,q)
-        !do kk=1,2
-        !do k=1,500
+
         do while (removed)
-
-            ! æ£€æŸ¥ç²’å­
-
-            !i=2+int(rand()*(n_p-2))
-            ! é€‰æ‹©ç²’å­çš„æ–¹æ³•
-            select case (method)
-                case (0)
+            removed=.false.
+            ! ¼ì²éÁ£×Ó
+            !call output(output_file,q)
+            select case(mode)
+                case(1,2)
+                    do i=i_ein,i_end,i_tep
+                        t=0
+                        ! Ïß¶Î
+                        do j=1,n_p-1
+                            if ( j+1<i .or. j>i+2 ) then
+                                t_f = inside_triangle(x(1:3,i),x(1:3,i+1),x(1:3,i+2),x(1:3,j),x(1:3,j+1))
+                                if (t_f) then
+                                    t=t+1
+                                    !write(*,*) i,j,t_f
+                                endif
+                            endif
+                        enddo
+                        if (t==0)then
+                            select_i=i
+                            exit
+                        end if
+                        !Èç¹ûtÎª0, ¿ÉÒÔ±»ÒÆ³ı, Èç¹ût²»ÊÇ0Ôò²»ÄÜÒÆ³ı
+                    enddo
+                case(3)
                     removed=.false.
                     maxcos=-10
                     select_i=-1
@@ -373,7 +274,7 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
                             maxcos=curcos
                         end if
                     end do
-                case(1)
+                case(4)
                     if (n_p==n_p0) then
                         select_i=2
                     else
@@ -394,29 +295,39 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
                             exit
                         end if
                     end do
-            end select
-            !write(*,*) select_i
-            removed=.false.
-            if(select_i/=-1)then
-                x(1:4,select_i:n_p-1) = x(1:4,select_i+1:n_p)
+            endselect
+
+
+            if(t==0)then
+                x(1:4,select_i+1:n_p-1) = x(1:4,select_i+2:n_p)
                 n_p=n_p-1
                 removed=.true.
-                !call output(output_file,q)
             endif
-            !write(*,*) n_p
+            ! write(*,*)n_p
             if (n_p<=2) exit
         enddo
 
-        if (n_p>2) then
-            minj=n_p0
+        n_reult=met_on_one(x,n_p,x0,n_p0)
+        !write(*,*) minj, maxj,q,n_p
+        !call output(output_file,q)
+
+    end subroutine
+
+
+    integer function met_on_one(x_,n_,x_m,n_m)
+        integer n_,n_m
+        real(8) x_(4,n_),x_m(4,n_m)
+        integer i1,i2,i3,minj,mxj,j
+        if (n_>2) then
+            minj=n_m
             maxj=0
             ! write(*,*)n_p,n_p0
-            do i1=2,n_p-3; do i2=i1+1,n_p-2; do i3=i2+1,n_p-1
-                do j=1,n_p0-1
-                    if ( j+1<x(4,i1) .or. j>x(4,i3) ) then
-                        if (inside_triangle(x(:,i1),x(:,i2),x(:,i3),x0(:,j),x0(:,j+1))) then
-                            minj=min(j,minj,int(x(4,i1))-1)
-                            maxj=max(j+1,maxj,int(x(4,i3))+1)
+            do i1=2,n_-3; do i2=i1+1,n_-2; do i3=i2+1,n_-1
+                do j=1,n_m-1
+                    if ( j+1<x_(4,i1) .or. j>x_(4,i3) ) then
+                        if (inside_triangle(x_(:,i1),x_(:,i2),x_(:,i3),x_m(:,j),x_m(:,j+1))) then
+                            minj=min(j,minj,int(x_(4,i1))-1)
+                            maxj=max(j+1,maxj,int(x_(4,i3))+1)
                             !write(*,*) i1,i2,i3,j
                         end if
                     endif
@@ -424,51 +335,34 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
             enddo; enddo; enddo
             !write(*,*) minj, maxj
             !x(:,1:maxj-minj+1)=x0(:,minj:maxj)
-            n_p=maxj-minj+1
+            met_on_one=maxj-minj+1
         else
-            n_p=0
+            met_on_one=0
         end if
-        !n_pk(kk)=n_p
-        !enddo
-        !n_p=minval(n_pk,n_pk>0)
-        !write(*,'(2I6,$)') q,n_p
-        !do i=1,n_p/2
-        !write(*,'(A,$)') '*'
-        !end do
-        !write(*,*)
-        !call output(output_file,q)
-        !write(*,*) minj, maxj,q,n_p
-    end subroutine
+    end function
 
     subroutine removeparticle(x,n_p,q)
-        integer n_p, n_p0,i,q
+        integer n_p, n_p0,i,q,n_reult
         real(8) x(4,n_p),x0(4,n_p),zk(n_p,3)
         integer n_pk(3)
         integer:: method=0
 
-        x0=x
-        n_p0=n_p
-
-        call removeparticle1(x,n_p,q)
+        call removeparticle1(x,n_p,q,1,n_reult)
         zk(:,1)=x(3,:)
-        n_pk(1)=n_p
-        x=x0
-        n_p=n_p0
-        call removeparticle2(x,n_p,q)
+        n_pk(1)=n_reult
+
+        call removeparticle1(x,n_p,q,2,n_reult)
         zk(:,2)=x(3,:)
-        n_pk(2)=n_p
-        x=x0
-        n_p=n_p0
-        call removeparticle3(x,n_p,q)
+        n_pk(2)=n_reult
+
+        call removeparticle1(x,n_p,q,3,n_reult)
         zk(:,3)=x(3,:)
-        n_pk(3)=n_p
-        x=x0
-        n_p=n_p0
+        n_pk(3)=n_reult
 
         n_p=minval(n_pk, n_pk>=0)
         do i=1,3
             if(n_p==n_pk(i))then
-              z0(q)=sum(zk(1:n_p,i))/n_p
+                z0(q)=sum(zk(1:n_p,i))/n_p
             end if
         end do
     end subroutine
@@ -562,7 +456,7 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
                     l=t(3,j)
                 end if
             end do
-            !æ‰¾åˆ°äº†æ–°çš„ç‚¹
+            !ÕÒµ½ÁËĞÂµÄµã
             if (l==-1) then
                 !write(*,'(2I3,$)') c-1, int(t(5,i))
                 content(n)=c-1
@@ -577,7 +471,7 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
             n=n+2
         end do
         !write(*,*)
-        !å·¦å³æ—‹
+        !×óÓÒĞı
         c=1
         do i=1,k
             l=-1
@@ -586,7 +480,7 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
                     l=i
                 end if
             end do
-            !æ‰¾åˆ°äº†æ–°çš„ç‚¹
+            !ÕÒµ½ÁËĞÂµÄµã
             if (l==-1) then
                 !write(*,*) c-1, int(t(6,i))
                 content(n)=c-1
@@ -608,7 +502,7 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
         !stop
     end subroutine
 
-    ! äº¤æ¢
+    ! ½»»»
     subroutine swap_r8(a,b)
         real(8), dimension(6) :: a,b,c
         c=a
@@ -616,7 +510,7 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
         b=c
     end subroutine
 
-    ! å¿«é€Ÿæ’åº
+    ! ¿ìËÙÅÅĞò
     recursive subroutine quick_sort(v,n,s,e)
         real(8) v(6,n),key
         integer n,s,e,l,r,m
@@ -635,7 +529,7 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
             enddo
             if (l<r) then
                 call swap_r8(v(:,l),v(:,r))
-                ! ä¸keyç›¸ç­‰åˆ™å¤šèµ°ä¸€ä½, æ³¨æ„æ˜¯äº¤æ¢åçš„å€¼
+                ! ÓëkeyÏàµÈÔò¶à×ßÒ»Î», ×¢ÒâÊÇ½»»»ºóµÄÖµ
                 if (v(1,r)==key) l=l+1
                 if (v(1,l)==key) r=r-1
             endif
@@ -658,11 +552,11 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
         call connect(x,n)
         do while (removed)
             removed=.false.
-            ! æ£€æŸ¥ç²’å­
+            ! ¼ì²éÁ£×Ó
             !call output(output_file,q)
             do i=1,n-2,1
                 t=0
-                ! çº¿æ®µ
+                ! Ïß¶Î
                 do j=1,n-1
                     if ( j+1<i .or. j>i+2 ) then
                         t_f = inside_triangle(x(1:3,i),x(1:3,i+1),x(1:3,i+2),x(1:3,j),x(1:3,j+1))
@@ -673,7 +567,7 @@ subroutine stat_main(cur_step,x_p,n_p0,n_p,string,Rg,c_axis,std_deviation)
                     endif
                 enddo
                 if (t==0)exit
-                !å¦‚æœtä¸º0, å¯ä»¥è¢«ç§»é™¤, å¦‚æœtä¸æ˜¯0åˆ™ä¸èƒ½ç§»é™¤
+                !Èç¹ûtÎª0, ¿ÉÒÔ±»ÒÆ³ı, Èç¹ût²»ÊÇ0Ôò²»ÄÜÒÆ³ı
             enddo
             if(t==0)then
                 x(:,i+1:n-1) = x(:,i+2:n)
