@@ -211,17 +211,17 @@ contains
         real(8) x(4,n_p0), x0(4,n_p0)
         logical removed, t_f
         real(8) maxcos, curcos
-        real(8)r1(3),r2(3)
+        real(8) r1(3),r2(3),poition
 
         removed=.true.
         select case(mode)
             case(1)
-                i_ein=1
-                i_end=n_p-2
+                i_ein=2
+                i_end=n_p0-1
                 i_tep=1
             case(2)
-                i_ein=n_p-2
-                i_end=1
+                i_ein=n_p0-1
+                i_end=2
                 i_tep=-1
         endselect
 
@@ -233,22 +233,24 @@ contains
             removed=.false.
             ! 检查粒子
             !call output(output_file,q)
+            select_i=-1
             select case(mode)
                 case(1,2)
                     do i=i_ein,i_end,i_tep
                         t=0
                         ! 线段
                         do j=1,n_p-1
-                            if ( j+1<i .or. j>i+2 ) then
-                                t_f = inside_triangle(x(1:3,i),x(1:3,i+1),x(1:3,i+2),x(1:3,j),x(1:3,j+1))
+                            if ( j+1<i-1 .or. j>i+1 ) then
+                                t_f = inside_triangle(x(1:3,i),x(1:3,i+1),x(1:3,i-1),x(1:3,j),x(1:3,j+1))
                                 if (t_f) then
                                     t=t+1
                                     !write(*,*) i,j,t_f
+                                    exit
                                 endif
                             endif
                         enddo
                         if (t==0)then
-                            select_i=i
+                            select_i=i+1
                             exit
                         end if
                         !如果t为0, 可以被移除, 如果t不是0则不能移除
@@ -295,11 +297,11 @@ contains
                             exit
                         end if
                     end do
-            endselect
+            end select
 
-
-            if(t==0)then
-                x(1:4,select_i+1:n_p-1) = x(1:4,select_i+2:n_p)
+            if(select_i>0)then
+                !write(*,*)select_i,n_p
+                x(1:4,select_i:n_p-1) = x(1:4,select_i+1:n_p)
                 n_p=n_p-1
                 removed=.true.
             endif
@@ -307,16 +309,16 @@ contains
             if (n_p<=2) exit
         enddo
 
-        n_reult=met_on_one(x,n_p,x0,n_p0)
-        !write(*,*) minj, maxj,q,n_p
+        call met_on_one(x,n_p,x0,n_p0,n_reult,poition)
+        write(*,*) n_p,n_p0
         !call output(output_file,q)
 
     end subroutine
 
 
-    integer function met_on_one(x_,n_,x_m,n_m)
-        integer n_,n_m
-        real(8) x_(4,n_),x_m(4,n_m)
+    subroutine met_on_one(x_,n_,x_m,n_m,ize,poition)
+        integer n_,n_m,ize
+        real(8) x_(4,n_),x_m(4,n_m),poition
         integer i1,i2,i3,minj,mxj,j
         if (n_>2) then
             minj=n_m
@@ -335,11 +337,11 @@ contains
             enddo; enddo; enddo
             !write(*,*) minj, maxj
             !x(:,1:maxj-minj+1)=x0(:,minj:maxj)
-            met_on_one=maxj-minj+1
+            ize=maxj-minj+1
         else
-            met_on_one=0
+            ize=0
         end if
-    end function
+    endsubroutine
 
     subroutine removeparticle(x,n_p,q)
         integer n_p, n_p0,i,q,n_reult
@@ -351,14 +353,14 @@ contains
         zk(:,1)=x(3,:)
         n_pk(1)=n_reult
 
-        call removeparticle1(x,n_p,q,2,n_reult)
+        !call removeparticle1(x,n_p,q,2,n_reult)
         zk(:,2)=x(3,:)
         n_pk(2)=n_reult
 
-        call removeparticle1(x,n_p,q,3,n_reult)
+        !call removeparticle1(x,n_p,q,3,n_reult)
         zk(:,3)=x(3,:)
         n_pk(3)=n_reult
-
+        !write(*,*)x
         n_p=minval(n_pk, n_pk>=0)
         do i=1,3
             if(n_p==n_pk(i))then
