@@ -798,7 +798,7 @@ contains
     end subroutine
 
     subroutine one_step(cur_step,interval_step,output_file,equili_force,stat_result_file)
-        use statistics, only : stat_main, translocation_t, return_translocation_t,trans_begin_t,trans_end_t,unknot_t
+        use statistics, only : stat_main, translocation_t, return_translocation_t,trans_begin_t,trans_end_t,unknot_t,z0
         implicit none
 
         integer cur_step, output_file, i, interval_step,equili_force,n_p1,stat_result_file,trans_unknot_type
@@ -844,7 +844,7 @@ contains
             call stat_main(cur_step,x_p,n_p,n_p1,string,Rg,c_axis,std_deviation)
 
             if(n_p1==0.and.unknot_t==-1) unknot_t=cur_step    !!!!!记录结点为0的第一次时刻
-            write(*,'(I7,5F10.3,I7,5x,A)') cur_step,t-time0,T_scaled,Rg,c_axis,std_deviation,n_p1,trim(string)
+            write(*,'(I7,5F10.3,I7,F10.3,5x,A)') cur_step,t-time0,T_scaled,Rg,c_axis,std_deviation,n_p1,z0(cur_step),trim(string)
             if(equili_force==1)then
             write(stat_result_file,'(I7,3F10.3,I7,5x,A)') cur_step,Rg,c_axis,std_deviation,n_p1,trim(string)
             endif

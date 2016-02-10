@@ -342,7 +342,8 @@ contains
         else
             ize=0
         end if
-        poition=sum(x_m(3,minj:maxj))*ize**(-1)
+        poition=sum(x_m(3,minj:maxj))/ize
+        !write(*,*)poition,ize
     endsubroutine
 
     subroutine removeparticle(x,n_p,q)
@@ -354,7 +355,7 @@ contains
         call removeparticle1(x,n_p,q,1,n_pk(1),zk(1))
         call removeparticle1(x,n_p,q,2,n_pk(2),zk(2))
         call removeparticle1(x,n_p,q,3,n_pk(3),zk(3))
-        write(*,*)n_pk
+        !write(*,*)n_pk,zk
         n_p=minval(n_pk, n_pk>=0)
         z0(q)=zk(minloc(n_pk,1,n_pk>=0))
 
