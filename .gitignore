@@ -9,3 +9,5 @@
 *.out
 wn/libblas.a
 wn/dump.cylinder.lammpstrj
+*.lammpstrj
+*.a
