@@ -342,7 +342,11 @@ contains
         else
             ize=0
         end if
-        poition=sum(x_m(3,minj:maxj))/ize
+        if(ize==0)then
+            poition=0
+        else
+            poition=sum(x_m(3,minj:maxj))/ize
+        endif
         !write(*,*)poition,ize
     endsubroutine
 

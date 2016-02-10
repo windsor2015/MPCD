@@ -789,7 +789,7 @@ contains
     subroutine write_table_title(equili_force,stat_result_file)
         implicit none
         integer equili_force,stat_result_file
-        write(*,'(A7,5A10,A7,A20)') 'step', 'time','T_scaled','Rg','c_axis','std_de','knot','homfly'
+        write(*,'(A7,5A10,A7,A20)') 'step', 'time','T','Rg','c_axis','std_de','knot','homfly'
         write(*,*) '-------------------------------------------------------------------------------'
         if(equili_force==1)then
         write(stat_result_file,'(A7,3A10,A7,A20)') 'step','Rg','c_axis','std_de','knot','homfly'
