@@ -309,28 +309,28 @@ contains
             if (n_p<=2) exit
         enddo
 
-        call met_on_one(x,n_p,x0,n_p0,n_reult,z)
+        call meat_on_bone(x,n_p,x0,n_p0,n_reult,z)
         !write(*,*) n_p,n_p0,n_reult
         !call output(output_file,q)
 
     end subroutine
 
 
-    subroutine met_on_one(x_,n_,x_m,n_m,ize,poition)
-        integer n_,n_m,ize
-        real(8) x_(4,n_),x_m(4,n_m),poition
+    subroutine meat_on_bone(x_b,n_b,x_m,n_m,measure,coord)
+        integer n_b,n_m,measure
+        real(8) x_b(4,n_b),x_m(4,n_m),coord
         integer i1,i2,i3,minj,maxj,j
 
-        if (n_>2) then
+        if (n_b>2) then
             minj=n_m
             maxj=0
             ! write(*,*)n_p,n_p0
-            do i1=2,n_-3; do i2=i1+1,n_-2; do i3=i2+1,n_-1
+            do i1=2,n_b-3; do i2=i1+1,n_b-2; do i3=i2+1,n_b-1
                 do j=1,n_m-1
-                    if ( j+1<x_(4,i1) .or. j>x_(4,i3) ) then
-                        if (inside_triangle(x_(:,i1),x_(:,i2),x_(:,i3),x_m(:,j),x_m(:,j+1))) then
-                            minj=min(j,minj,int(x_(4,i1))-1)
-                            maxj=max(j+1,maxj,int(x_(4,i3))+1)
+                    if ( j+1<x_b(4,i1) .or. j>x_b(4,i3) ) then
+                        if (inside_triangle(x_b(:,i1),x_b(:,i2),x_b(:,i3),x_m(:,j),x_m(:,j+1))) then
+                            minj=min(j,minj,int(x_b(4,i1))-1)
+                            maxj=max(j+1,maxj,int(x_b(4,i3))+1)
                             !write(*,*) i1,i2,i3,j
                         end if
                     endif
@@ -338,14 +338,14 @@ contains
             enddo; enddo; enddo
             !write(*,*) minj, maxj
             !x(:,1:maxj-minj+1)=x0(:,minj:maxj)
-            ize=maxj-minj+1
+            measure=maxj-minj+1
         else
-            ize=0
+            measure=0
         end if
-        if(ize==0)then
-            poition=0
+        if(measure==0)then
+            coord=0
         else
-            poition=sum(x_m(3,minj:maxj))/ize
+            coord=sum(x_m(3,minj:maxj))/measure
         endif
         !write(*,*)poition,ize
     endsubroutine
