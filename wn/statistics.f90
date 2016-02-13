@@ -1,5 +1,5 @@
 module statistics
-    use shape_all , only: ratio_z, n_cell_z, n_p
+    use shape_all , only: ratio_z, n_cell_z, n_p,desk_interval_step
     integer :: n_p_const=100
     real(8) x(4,100), z0(3000000)
 
@@ -81,7 +81,8 @@ contains
 
     !!!!!!!!!穿孔散结类型!!!!!!!!!!
     integer function trans_unknot_type() !result(trans_unknot_type)
-
+    integer unknot_before
+            unknot_before=unknot_t-desk_interval_step
         if (trans_begin_t>0 .and. trans_end_t>0) then
             !            if(unknot_t<trans_begin_t)then
             !                trans_unknot_type=1
@@ -92,11 +93,11 @@ contains
             !            elseif(unknot_t==-1)then
             !                trans_unknot_type=4
             !            end if
-            if(z0(unknot_t-1000)<-n_cell_z*ratio_z/2d0)then
+            if(z0(unknot_before)<-n_cell_z*ratio_z/2d0)then
                 trans_unknot_type=1
-            elseif(z0(unknot_t-1000)<=n_cell_z*ratio_z/2d0 .and. z0(unknot_t-1000)>=-n_cell_z*ratio_z/2d0)then
+            elseif(z0(unknot_before)<=n_cell_z*ratio_z/2d0 .and. z0(unknot_before)>=-n_cell_z*ratio_z/2d0)then
                 trans_unknot_type=2
-            elseif(z0(unknot_t-1000)>n_cell_z*ratio_z/2d0)then
+            elseif(z0(unknot_before)>n_cell_z*ratio_z/2d0)then
                 trans_unknot_type=3
             elseif(unknot_t==-1)then
                 trans_unknot_type=4
@@ -205,9 +206,9 @@ contains
     end subroutine
 
     !input prmeter never chned
-    subroutine removeparticle1(x0,n_p0,cur_tep,mode,n_reult,z)
+    subroutine removeparticle1(x0,n_p0,cur_step,mode,n_reult,z)
         integer n_p0, n_p, i, j, t, i1, i2, i3, minj, maxj,output_file,q,mode
-        integer i_ein,i_end,i_tep,select_i,cur_tep,n_reult
+        integer i_begin,i_end,i_step,select_i,cur_step,n_reult
         real(8) x(4,n_p0), x0(4,n_p0)
         logical removed, t_f
         real(8) maxcos, curcos
@@ -227,16 +228,16 @@ contains
             select case(mode)
                 case(1,2)
                     if(mode==1)then
-                        i_ein=2
+                        i_begin=2
                         i_end=n_p-1
-                        i_tep=1
+                        i_step=1
                     else
-                        i_ein=n_p-1
+                        i_begin=n_p-1
                         i_end=2
-                        i_tep=-1
+                        i_step=-1
                     endif
                     !write(*,*)i_ein,i_end,i_tep
-                    do i=i_ein,i_end,i_tep
+                    do i=i_begin,i_end,i_step
                         t=0
                         ! 线段
                         do j=1,n_p-1
