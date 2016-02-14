@@ -77,6 +77,8 @@ module shape_all
 
     integer :: string_form = 0, string_p=3, string_q=2, string_z=1
 
+    integer :: randomseed
+
     contains
 
 end module
