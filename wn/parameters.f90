@@ -1,6 +1,6 @@
 
 module parameters
-use statistics, only : stat_main,translocation_t, return_translocation_t
+    use statistics, only : stat_main,translocation_t, return_translocation_t
 #if defined (_T_TUBE)
     use shape_t_tube
 #elif defined (_T_TUBE1)
@@ -31,12 +31,66 @@ contains
         close(input_file)
     endsubroutine
 
+    subroutine init_random_seed()
+        use iso_fortran_env, only: int64
+        implicit none
+        integer, allocatable :: seed(:)
+        integer :: i, n, un, istat, dt(8), pid
+        integer(int64) :: t
+
+        call random_seed(size = n)
+        allocate(seed(n))
+
+        ! Fallback to XOR:ing the current time and pid. The PID is
+        ! useful in case one launches multiple instances of the same
+        ! program in parallel.
+        call system_clock(t)
+        if (t == 0) then
+            call date_and_time(values=dt)
+            t = (dt(1) - 1970) * 365_int64 * 24 * 60 * 60 * 1000 &
+                + dt(2) * 31_int64 * 24 * 60 * 60 * 1000 &
+                + dt(3) * 24_int64 * 60 * 60 * 1000 &
+                + dt(5) * 60 * 60 * 1000 &
+                + dt(6) * 60 * 1000 + dt(7) * 1000 &
+                + dt(8)
+        end if
+        pid = getpid()
+        t = ieor(t, int(pid, kind(t)))
+        do i = 1, n
+            seed(i) = lcg(t)
+        end do
+
+        call random_seed(put=seed)
+    contains
+        ! This simple PRNG might not be good enough for real work, but is
+        ! sufficient for seeding a better PRNG.
+        function lcg(s)
+            integer :: lcg
+            integer(int64) :: s
+            if (s == 0) then
+                s = 104729
+            else
+                s = mod(s, 4294967296_int64)
+            end if
+            s = mod(s * 279470273_int64, 4294967291_int64)
+            lcg = int(mod(s, int(huge(0), int64)), kind(0))
+        end function lcg
+    end subroutine init_random_seed
+
     subroutine init()
         implicit none
         integer i,j,k,count_number
         real(8) dx(2,4), theta, r, d, t, x(3,10000), tx(10000),s
         logical success
-        integer,parameter :: seed = 11111
+        !integer,parameter :: seed = 11111
+        integer t_seed
+
+        call system_clock(t_seed)
+        call srand(t_seed)
+        !write(*,*)t_seed,rand()
+        call init_random_seed()
+        !call random_number(s)
+        !write(*,*)s
 
         select case (string_form)
             case (0)
@@ -67,7 +121,6 @@ contains
                 dx(1,4)=-1d0
                 dx(2,4)=0
 
-                call srand(seed)
                 do i=2,n_p
                     success=.false.
                     do count_number=1,11116
@@ -317,11 +370,11 @@ contains
         implicit none
         integer flag
         if(flag==0)then
-            f_p(3,1)=f_p(3,1)+20
-            f_p(3,n_p)=f_p(3,n_p)-20
+            f_p(3,1)=f_p(3,1)+30
+            f_p(3,n_p)=f_p(3,n_p)-30
         end if
     end subroutine
-    
+
     subroutine exter_LJ(f,U,rx,flag)
         implicit none
         real(8) f, U, rx
@@ -329,15 +382,15 @@ contains
         real(8) temp,r
         integer flag
         if(flag==0)then
-        r=abs(rx)
-        if(r/=0 .and. r<=LJ_rc)then
-            temp=24d0*epson*(2d0*(sigma/r)**12-(sigma/r)**6)/(r**2)
-            f=f+rx*temp
-            U=U+4*epson*((sigma/r)**12-(sigma/r)**6)
-        endif
+            r=abs(rx)
+            if(r/=0 .and. r<=LJ_rc)then
+                temp=24d0*epson*(2d0*(sigma/r)**12-(sigma/r)**6)/(r**2)
+                f=f+rx*temp
+                U=U+4*epson*((sigma/r)**12-(sigma/r)**6)
+            endif
         endif
     endsubroutine
-    
+
     subroutine update_force(mode,equi_flag,cur_step)
         implicit none
         integer mode, i, j, equi_flag, cur_step
@@ -369,15 +422,15 @@ contains
                     call LJ(f_p(:,i),U_LJ,x_p(:,i)-x_p(:,j))
                 endif
             enddo
-            
-           call exter_LJ(f_p(3,i),U_LJ,x_p(3,i)+n_cell_z*ratio_z/2d0,equi_flag)
+
+            call exter_LJ(f_p(3,i),U_LJ,x_p(3,i)+n_cell_z*ratio_z/2d0,equi_flag)
         enddo
         !$omp end parallel do
-        
+
         if(cur_step<=equili_step/2)then
-          call exter(equi_flag)
+            call exter(equi_flag)
         endif
-        
+
         U=U_FENE+U_BEND+U_LJ
 
         if (mode==0) then
@@ -565,9 +618,11 @@ contains
 
     subroutine thermostat_init()
         implicit none
-        integer s
+        integer s,t_seed
+
 #ifdef __INTEL_COMPILER
-        s=vslnewstream(vsl_stream,VSL_BRNG_MT19937,77777)
+        call system_clock(t_seed)
+        s=vslnewstream(vsl_stream,VSL_BRNG_MT19937,t_seed)
 #endif
         if (thermostat_method/=0) thermostat_interval=1
 
@@ -789,20 +844,20 @@ contains
     subroutine write_table_title(equili_force,stat_result_file)
         implicit none
         integer equili_force,stat_result_file
-        write(*,'(A7,3A10,A7,A7,A20)') 'step', 'time','T_scaled','Rg','knot','tran_t','homfly'
+        write(*,'(A7,5A10,A7,A20)') 'step', 'time','T','Rg','c_axis','std_de','knot','homfly'
         write(*,*) '-------------------------------------------------------------------------------'
         if(equili_force==1)then
-        write(stat_result_file,'(A7,A10,A7,A7,A20)') 'step','Rg','knot','tran_t','homfly'
-        write(stat_result_file,*) '-------------------------------------------------------------------------------'     
+            write(stat_result_file,'(A7,3A10,A7,A20)') 'step','Rg','c_axis','std_de','knot','homfly'
+            write(stat_result_file,*) '-------------------------------------------------------------------------------'
         endif
     end subroutine
 
     subroutine one_step(cur_step,interval_step,output_file,equili_force,stat_result_file)
-        use statistics, only : stat_main, translocation_t, return_translocation_t,trans_begin_t,trans_end_t
+        use statistics, only : stat_main, translocation_t, return_translocation_t,trans_begin_t,trans_end_t,unknot_t,z0
         implicit none
 
-        integer cur_step, output_file, i, interval_step,equili_force,n_p1,tt,stat_result_file
-        real(8) :: EK_scaled,T_scaled,t,min_z,min_z0,count_z,Rg
+        integer cur_step, output_file, i, interval_step,equili_force,n_p1,stat_result_file,trans_unknot_type
+        real(8) :: EK_scaled,T_scaled,t,min_z,min_z0,count_z,Rg,c_axis,std_deviation
         character(80) string
 
         ! solvent
@@ -835,19 +890,18 @@ contains
         enddo
 
         call cal_collision_velocity(cur_step)
-        if (equili_force/=0)call translocation_t(x_p,n_p,cur_step)
 
         if (thermostat_method<10) call thermostat(cur_step)
 
         if(mod(cur_step,desk_interval_step)==0)then
             call Ek_T(EK_scaled, T_scaled)
             call get_time(t)
-            call stat_main(cur_step,x_p,n_p,n_p1,string,Rg)
-             tt=return_translocation_t()  
-             write(*,*)trans_end_t,trans_begin_t
-            write(*,'(I7,3F10.3,I7,I7,5x,A)') cur_step,t-time0,T_scaled,Rg,n_p1,tt,trim(string)
+            call stat_main(cur_step,x_p,n_p,n_p1,string,Rg,c_axis,std_deviation)
+
+            if(n_p1==0.and.unknot_t==-1) unknot_t=cur_step    !!!!!记录结点为0的第一次时刻
+            write(*,'(I7,5F10.3,I7,F10.3,5x,A)') cur_step,t-time0,T_scaled,Rg,c_axis,std_deviation,n_p1,z0(cur_step),trim(string)
             if(equili_force==1)then
-            write(stat_result_file,'(I7,F10.3,2I7,5x,A)') cur_step,Rg,n_p1,tt,trim(string)
+                write(stat_result_file,'(I7,3F10.3,I7,5x,A)') cur_step,Rg,c_axis,std_deviation,n_p1,trim(string)
             endif
             if (output_sketch/=0) then
                 call output_sketch_sub()

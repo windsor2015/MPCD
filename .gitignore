@@ -9,6 +9,7 @@
 *.out
 wn/libblas.a
 wn/dump.cylinder.lammpstrj
-wn/coordinate_velocity
 *.lammpstrj
+*.a
+wn/coordinate_velocity
 wn/velocity_radius
