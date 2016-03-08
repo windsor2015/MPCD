@@ -63,7 +63,7 @@ module shape_all
         desk_interval_step, equili_step, equili_interval_step, total_step, produ_interval_step, &
         thermostat_method, thermostat_interval, thermostat_B_parameter,thermostat_A_parameter, &
         string_form, BEND_b, equili_filename, production_filename,radius,ratio_z,ratio_y, &
-        output_sketch, field_interval, string_p,string_q,string_z
+        output_sketch, field_interval, string_p,string_q,string_z,output_dump
 
 #ifdef __INTEL_COMPILER
     TYPE (VSL_STREAM_STATE) :: vsl_stream
@@ -78,6 +78,8 @@ module shape_all
     integer :: string_form = 0, string_p=3, string_q=2, string_z=1
 
     integer :: randomseed
+
+    integer :: output_dump=0
 
     contains
 

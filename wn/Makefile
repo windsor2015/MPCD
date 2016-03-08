@@ -26,7 +26,7 @@ OBJS = $(addprefix $(OBJS_DIR), $(OBJS_d1) $(OBJS_f90d1))
 
 all : $(EXE)
 
-all3 : clean cylinder clean t-tube clean t-tube1
+all3 : clean cylinder clean t-tube clean t-tube1 funnel
 
 cylinder : FC=ifort -D_CYLINDER
 cylinder : EXE=wn_cylinder

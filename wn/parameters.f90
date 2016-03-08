@@ -853,7 +853,7 @@ contains
     end subroutine
 
     subroutine one_step(cur_step,interval_step,output_file,equili_force,stat_result_file)
-        use statistics, only : stat_main, translocation_t, return_translocation_t,trans_begin_t,trans_end_t,unknot_t,z0
+        use statistics, only: stat_main, translocation_t, return_translocation_t, trans_begin_t,trans_end_t,unknot_t,z0
         implicit none
 
         integer cur_step, output_file, i, interval_step,equili_force,n_p1,stat_result_file,trans_unknot_type
@@ -869,7 +869,6 @@ contains
 
         ! polymer chain
         do i=1,int(time_step_s/time_step_p)
-
             x0_p=x_p
             x_p = x_p + v_p*time_step_p + 0.5*f0_p*time_step_p**2
             !p_x=x_p
@@ -909,7 +908,7 @@ contains
             knot_flag=n_p1/=0
             time0=t
         endif
-        if (mod(cur_step,interval_step)==0)then
+        if (mod(cur_step,interval_step)==0 .and. output_dump/=0)then
             call output(output_file,cur_step,interval_step)
             !if (cross_flag==1 .and. min_z>n_cell_z/3d0) cross_flag=2
         endif
