@@ -7,7 +7,7 @@ ratio_z=0.25d0
 radius=4d0,1d0
 
 desk_interval_step=1000
-!!!!!!!!!!!!!!!再试
+!!!!!!!!!!!!!!!再试123
 equili_step=200000
 equili_interval_step=1000
 total_step=2000000
